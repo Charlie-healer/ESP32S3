@@ -77,6 +77,8 @@ ports/175c/dist/
 
 包含 `PhoneClockWire.swift`，连接后向圆屏发送 `#TIME,<UTC秒>,<时区偏移>`，与 1.75C 的 `HomeClock`/RTC 离线时钟配合。
 
+> 当前 iOS 对齐的是主线导航/音乐/天气功能；1.75C 专属的目的地抽屉、专辑封面等 BLE 扩展仍以 Android 端为主，iOS 尚未实现同等 UI。
+
 iOS 构建需要 macOS、Xcode 和 CocoaPods：
 
 ```bash

@@ -58,7 +58,7 @@
   "amapOnlyChecks": 3037,
   "fourStyleRasterChecks": 22941,
   "verificationNotes": "docs/VERIFY-2026-10-27.md",
-  "androidFusionVersion": "8.3.26-single.29",
+  "androidFusionVersion": "8.3.26-single.30",
   "iosSourceOnly": true,
   "iosNewIPAIncluded": false,
   "personalRebelBootIncluded": false,
@@ -87,7 +87,7 @@
       "countdown": false
     },
     "countdown": {
-      "version": "8.3.26-single.29",
+      "version": "8.3.26-single.30",
       "source": "android/countdown",
       "countdown": true,
       "fullBuildRequiresUserSuppliedDependency": true
@@ -95,7 +95,7 @@
   },
   "iosCurrentFirmwareRetest": false,
   "standardReleaseBuildVerified": true,
-  "countdownCompleteBuildVerified": true,
+  "countdownCompleteBuildVerified": false,
   "publicFirmwareDeviceTested": false,
   "firmwareCorePersonalVariantDeviceTested": true,
   "androidAPKPublishedThisUpdate": false

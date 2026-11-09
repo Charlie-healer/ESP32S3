@@ -21,7 +21,7 @@
 |---|---|
 | 1.75C 固件 | MotoNav v7.12.11-175c.1（由上游 1.75 固件派生） |
 | 标准版 App | 8.3.26-ui.1，包名 `com.friday.motonav` |
-| 读秒版内部组件 | 8.3.26-single.29，包名 `com.friday.motonav.countdown` |
+| 读秒版内部组件 | 8.3.26-single.30，包名 `com.friday.motonav.countdown` |
 | 读秒版最终包 | `com.autonavi.amapauto`（高德车机版集成包） |
 | BLE 设备名 | `MotoNav-D111` |
 | 1.75C USB/BLE MAC | `c4:9e:7e:0b:d1:10` / BLE 名后缀 `D111` |

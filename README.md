@@ -3,7 +3,7 @@
 这个仓库现在是可独立构建的完整 MotoNav 源码工程，不再只是 1.75C 的 overlay：
 
 - 固件：MotoNav StopWatch 分支 + `ports/175c` 1.75C 移植层；
-- Android：普通版 `8.3.26-ui.1`（`com.friday.motonav`）和读秒版源码；
+- Android：普通版 `8.3.26-ui.1`（`com.friday.motonav`）和读秒版源码（single.30）；
 - iOS：主线 `0.15.1` 源码，已含手机通过 BLE `#TIME` 给圆屏校时；
 - 文档：`doc/` 是 1.75C 移植记录，`docs/` 是上游主线文档。
 

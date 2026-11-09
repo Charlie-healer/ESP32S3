@@ -36,7 +36,7 @@ scripts/                  构建/测试脚本
 python3 firmware/build.py --board 175c
 ```
 
-脚本直接编译 `firmware/boards/175c/MotoNav`（由 `ports/175c/sync_board.py` 从 175 源码 + `ports/175c/overlay` 生成），产物在：
+脚本直接编译 `firmware/boards/175c/MotoNav`（由 `ports/175c/sync_board.py` 从 175 源码 + `ports/175c/overlay` 生成）。修改 overlay 后先运行 `python3 ports/175c/sync_board.py`。产物在：
 
 ```text
 firmware/dist/175c/panel0/

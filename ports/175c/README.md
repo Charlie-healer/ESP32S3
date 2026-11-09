@@ -52,6 +52,12 @@ Windows：
 
 默认优先使用仓库根目录的 `firmware/`；找不到时才回退到旧的 `MotoNav_stopwatch/` 快照。
 
+修改 `ports/175c/overlay/` 后，运行以下命令同步顶层 1.75C 板型（否则 `firmware/build.py --board 175c` 仍用旧代码）：
+
+```bash
+python3 ports/175c/sync_board.py
+```
+
 ## overlay 与功能
 
 `overlay/` 镜像 `MotoNav` 目录结构，构建时在复制 175 源码后覆盖。当前包含：

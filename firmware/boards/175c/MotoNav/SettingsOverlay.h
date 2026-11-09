@@ -8,7 +8,7 @@
 extern String pendingEvt;
 
 bool settingsOpen = false;
-uint8_t brightPct = 78;
+uint8_t brightPct = 50;
 int settingsThemeIdx = 0;
 bool settingsLoaded = false;
 uint32_t gIdlePowerOffMs = 300000;
@@ -37,15 +37,15 @@ void settingsLoad() {
   settingsLoaded = true;
   Preferences pr;
   pr.begin("motonav", true);
-  brightPct = (uint8_t)pr.getInt("bright", 78);
+  brightPct = (uint8_t)pr.getInt("bright", 50);
   settingsThemeIdx = pr.getInt("theme", 0) & 3;
   homeStyle = pr.getInt("home", 0) == 1 ? HOME_FULL : HOME_RIDER;
   sleepMin = pr.getInt("sleep", 5);
   pr.end();
-  if (brightPct != 25 && brightPct != 50 && brightPct != 75 && brightPct != 100) brightPct = 78;
+  if (brightPct != 25 && brightPct != 50 && brightPct != 75 && brightPct != 100) brightPct = 50;
   if (sleepMin != 0 && sleepMin != 3 && sleepMin != 5 && sleepMin != 10) sleepMin = 5;
   gIdlePowerOffMs = sleepMin == 0 ? 0 : (uint32_t)sleepMin * 60000UL;
-  screenBright = (uint16_t)brightPct * 255 / 100;
+  screenBright = (uint16_t)(((uint16_t)brightPct * 255 + 50) / 100);
   panel->setBrightness(screenBright);
 }
 
@@ -103,7 +103,7 @@ bool settingsTap(int x, int y) {
     int idx = settingsRowAt(x, y);
     if (idx == 0) {
       brightPct = (brightPct == 25) ? 50 : (brightPct == 50) ? 75 : (brightPct == 75) ? 100 : 25;
-      screenBright = (uint16_t)brightPct * 255 / 100;
+      screenBright = (uint16_t)(((uint16_t)brightPct * 255 + 50) / 100);
       panel->setBrightness(screenBright);
       Preferences pr; pr.begin("motonav", false); pr.putInt("bright", brightPct); pr.end();
       drawSettingsSheet();

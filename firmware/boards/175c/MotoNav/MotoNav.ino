@@ -66,7 +66,7 @@ void setup() {
     if (qspiMHz != 40 && qspiMHz != 60 && qspiMHz != 80) qspiMHz = 40;
   }
   if (!gfx->begin(qspiMHz * 1000000)) Serial.println("gfx->begin() failed!");
-  panel->setBrightness(200);
+  panel->setBrightness(128);
 
   iconBuf = (uint16_t *)ps_malloc(ICON_BUF_W * ICON_BUF_H * 2);   // v1.8.1 图标缓存
   buildRingLut();                                                   // v1.8.3 抗锯齿圆环查找表

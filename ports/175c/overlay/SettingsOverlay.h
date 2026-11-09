@@ -3,7 +3,7 @@
 // Brightness / rotation / map style. Sleep stays on the existing idle power-off.
 
 #include "HomeVariant.h"
-#include "ScreenState.h"
+#include "src/power/ScreenState.h"
 
 extern String pendingEvt;
 

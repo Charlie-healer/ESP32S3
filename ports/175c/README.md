@@ -26,7 +26,7 @@
 | Flash | 32 MB | 16 MB | FQBN 32M，分区仍 16MB |
 | 电源 / IMU / 触摸 | AXP2101 / QMI8658 / CST9217 | 相同 | 不变 |
 
-1.75C 的 MCLK 是 GPIO16（原版 1.75 为 GPIO42）。当前固件不使用 ES8311 放音，代码暂时保留 42；以后启用音频时应改为 16。
+1.75C 的 MCLK 已按原理图改为 GPIO16（原版 1.75 为 GPIO42）；当前固件不使用 ES8311 放音。
 
 ## 构建
 
@@ -95,7 +95,7 @@ Windows：
 
 ```bash
 "$ESPTOOL" --chip esp32s3 -p /dev/cu.usbmodem2101 \
-  write_flash 0x10000 dist/MotoNav_175c_v7.12.10-pages.4_panel0_app_0x10000.bin
+  write_flash 0x10000 dist/MotoNav_175c_v7.12.11-175c.1_panel0_app_0x10000.bin
 ```
 
 首次完整安装才写 `0x0`。**不要额外加 `--flash_mode qio`**，镜像头是 DIO/80MHz/32MB，强制 QIO 会启动循环。
@@ -103,7 +103,7 @@ Windows：
 ## 已知限制
 
 - 1.75C 使用 32MB Flash，但 Arduino Core 3.3.10 只有 16MB 分区布局，当前只用前 16MB；后 16MB 闲置。
-- `pin_config.h` 的 MCLK 仍为 42；未启用音频，暂无影响。
-- PWR/CPU 功能来自 MotoNav-main 的 1.75C 参考实现，已编译；设备断开期间未能完成最终实机按键复测。
+- `pin_config.h` 的 MCLK 已改为 GPIO16；当前未启用音频。
+- PWR/CPU 功能来自 MotoNav-main 的 1.75C 参考实现；CPU 已实测 80MHz，熄屏/亮屏重绘路径已自检，AXP2101 实体 PWR 短按待按键复测。
 - 本工程不包含 Android/iOS 签名文件、高德 Key、和风 Key。
 - 上游代码为非商业使用许可，`AvatarEngine` 为 AGPL-3.0；公开分发需保留 `LICENSE.md`、`licenses/` 和来源说明。

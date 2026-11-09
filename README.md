@@ -33,22 +33,22 @@ scripts/                  构建/测试脚本
 构建：
 
 ```bash
-python3 ports/175c/build.py
+python3 firmware/build.py --board 175c
 ```
 
-脚本会从仓库根目录的 `firmware/` 读取源码和库，把 1.75C 引脚与 `ports/175c/overlay` 应用到临时构建目录，产物在：
+脚本直接编译 `firmware/boards/175c/MotoNav`（由 `ports/175c/sync_board.py` 从 175 源码 + `ports/175c/overlay` 生成），产物在：
 
 ```text
-ports/175c/dist/
-  MotoNav_175c_v7.12.10-pages.4_panel0_app_0x10000.bin
-  MotoNav_175c_v7.12.10-pages.4_panel0_full_0x0.bin
+firmware/dist/175c/panel0/
+  MotoNav_universal_1.75C_v7.12.11-175c.1_panel0_app_0x10000.bin
+  MotoNav_universal_1.75C_v7.12.11-175c.1_panel0_full_0x0.bin
 ```
 
 烧录 app 分区（不覆盖 NVS/配对信息）：
 
 ```bash
 "$ESPTOOL" --chip esp32s3 -p /dev/cu.usbmodem2101 \
-  write_flash 0x10000 ports/175c/dist/MotoNav_175c_v7.12.10-pages.4_panel0_app_0x10000.bin
+  write_flash 0x10000 firmware/dist/175c/panel0/MotoNav_universal_1.75C_v7.12.11-175c.1_panel0_app_0x10000.bin
 ```
 
 首次安装或救砖才写 `0x0` 的完整镜像；不要手动覆盖镜像头的 flash mode。

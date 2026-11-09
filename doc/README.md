@@ -19,7 +19,7 @@
 
 | 对象 | 版本 / 标识 |
 |---|---|
-| 1.75C 固件 | MotoNav 7.12.10-pages.4（由上游 1.75 固件派生） |
+| 1.75C 固件 | MotoNav v7.12.11-175c.1（由上游 1.75 固件派生） |
 | 标准版 App | 8.3.26-ui.1，包名 `com.friday.motonav` |
 | 读秒版内部组件 | 8.3.26-single.29，包名 `com.friday.motonav.countdown` |
 | 读秒版最终包 | `com.autonavi.amapauto`（高德车机版集成包） |
@@ -36,7 +36,7 @@
 - 离线时钟已实现：手机 `#TIME` 的基准存 `RTC_NOINIT_ATTR`，重启后按 ESP32-S3 RTC 计数补经过时间；无 App 同步的复位实测可恢复。
 - 倾角/G 页面已改用 SensorLib 新 QMI8658 驱动，启动自检 `LEAN: QMI8658 ready`，待触摸实机确认。
 - 待机主页支持两种皮肤：默认 RIDER（当前骑手主页），设置页 `HOME` 可切换到 VICE 完整待机页；两套共用抽屉、设置、倾角和 RTC/HomeClock。
-- PWR 短按熄屏/亮屏、熄屏/空闲待机 CPU 80MHz 动态调频已并入；PWR 按键待实机复测。
+- PWR 短按熄屏/亮屏、熄屏/空闲待机 CPU 80MHz 动态调频已并入；CPU 80MHz 已实测，熄屏/亮屏路径已自检，PWR 实体短按待复测。
 - 仓库已扩展为完整源码形态：`firmware/`、`android/`、`ios/`、`docs/`、`licenses/`、`scripts/`；iOS 0.15.1 已并入，Bundle ID `com.friday.motonav`，未做 Xcode/真机验证。
 
 ## 重要提醒

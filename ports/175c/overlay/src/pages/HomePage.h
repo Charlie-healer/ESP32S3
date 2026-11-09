@@ -13,7 +13,7 @@
 #include "../../resources/RiderSprites.h"
 #include "../../HomeClock.h"
 #include "../../HomeVariant.h"
-#include "../../ScreenState.h"
+#include "../../src/power/ScreenState.h"
 #include "../../DestHistory.h"
 
 int destStarY = 408;              // 408 = rider home, 316 = full standby

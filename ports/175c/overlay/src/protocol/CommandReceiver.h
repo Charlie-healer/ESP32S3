@@ -1,6 +1,5 @@
 #pragma once
-#include "../../CpuGovern.h"
-#include "../../PwrKeyScreen.h"
+#include "../power/ScreenState.h"
 // 导航状态重置、文字命令和总消息入口。由 MotoNav.ino 按依赖顺序包含，仅编译一次。
 void resetNavState() {
   trafficLightFrame.clear();trafficLightLab.clear();

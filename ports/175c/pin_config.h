@@ -31,7 +31,7 @@
 #define I2S_WS_IO 45
 #define I2S_DO_IO 8
 
-#define MCLKPIN             42
+#define MCLKPIN             16
 #define BCLKPIN              9
 #define WSPIN               45
 #define DOPIN               10

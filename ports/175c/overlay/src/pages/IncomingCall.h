@@ -3,10 +3,7 @@
 // ================= v5.1 来电显示 =================
 // 手机来电时整屏显示：上面 “INCOMING CALL”，中间绿色电话图标带往外扩散的波纹，下面是名字（手机渲染好的
 // 文字图片，图片栏 2）和号码；接听或挂断后回到原来的画面（地图 / 大箭头 / 首页）
-#include "../../ScreenState.h"
-
-void pwrKeyPoll();
-void cpuGovern();
+#include "../../src/power/ScreenState.h"
 
 bool callOn = false;
 String callNum = "";
@@ -54,8 +51,6 @@ static void touchPointToCanvas(int &x, int &y) {
 }
 
 void touchPoll() {
-  pwrKeyPoll();
-  cpuGovern();
   if (screenDark) return;
   static unsigned long lastPoll = 0;
   unsigned long now = millis();

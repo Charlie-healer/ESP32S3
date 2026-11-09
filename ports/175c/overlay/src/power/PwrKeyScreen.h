@@ -11,6 +11,25 @@
 
 static bool pwrKeyReady = false;
 
+// Shared by the normal loop tail and the screen-dark fast path.
+void idlePowerCheck() {
+  idlePowerPollSupply();
+  const bool navigating = idlePowerOffNavigationActive(
+      bleConnected && bleAuthed, inNav, cruiseOn, navDir == "A");
+  const bool interacting = pairOn || pairReq || callOn || touchDown || dragging || sliding;
+  if (idlePowerOffDueOnBattery(&idlePowerOffTimer, millis(), navigating, interacting, &idlePowerSupply)) {
+    bool queued;
+    portENTER_CRITICAL(&mux);
+    queued = rxTail != rxHead;
+    portEXIT_CRITICAL(&mux);
+    if (!queued) {
+      idlePowerPollSupply(true);
+      if (idlePowerOffDueOnBattery(&idlePowerOffTimer, millis(), navigating, interacting, &idlePowerSupply))
+        idlePowerOffShutdown();
+    }
+  }
+}
+
 void pwrKeyBusLocked(bool dark) {
   if (flushDone) xSemaphoreTake(flushDone, portMAX_DELAY);
   if (dark) {

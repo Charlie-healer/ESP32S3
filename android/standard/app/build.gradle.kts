@@ -63,7 +63,9 @@ android {
     }
 
     packaging {
-        jniLibs { useLegacyPackaging = true }
+        // Keep native libraries uncompressed so AGP can align them for
+        // 16 KB page-size devices.
+        jniLibs { useLegacyPackaging = false }
     }
 
     compileOptions {
@@ -85,5 +87,5 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-ktx:1.9.3")
-    implementation("com.amap.api:navi-3dmap-location-search:10.1.600_3dmap10.1.600_loc6.5.1_sea9.7.4")
+    implementation("com.amap.api:navi-3dmap-location-search:11.3.100_3dmap11.3.100_loc11.3.101_sea9.8.1")
 }

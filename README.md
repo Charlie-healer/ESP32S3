@@ -65,6 +65,7 @@ firmware/dist/175c/panel0/
 
 - 普通版：`android/standard/`，版本 `8.3.26-ui.1`，默认包名 `com.friday.motonav`；
 - 读秒版：`android/countdown/`，内部包名 `com.friday.motonav.countdown`，最终合并包仍是 `com.autonavi.amapauto`；
+- 高德 SDK 已升级到 11.3.100，native 库按 16KB page-size 对齐，`useLegacyPackaging=false`；
 - 需要 JDK 17、Android SDK 35；高德 Key 和签名必须用自己的包名 + SHA1；
 - 本仓库不包含 `local.properties`、keystore 或 API Key，按 `doc/03-Android-App-构建与配置.md` 配置。
 

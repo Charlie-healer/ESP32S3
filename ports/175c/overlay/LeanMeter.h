@@ -106,7 +106,7 @@ void drawLeanSheet() {
 }
 
 void leanTick() {
-  if (!leanOpen) return;
+  if (screenDark || !leanOpen) return;
   leanRead();
   static unsigned long lastDraw = 0;
   if (millis() - lastDraw < 100) return;

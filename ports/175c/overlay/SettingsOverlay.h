@@ -3,6 +3,7 @@
 // Brightness / rotation / map style. Sleep stays on the existing idle power-off.
 
 #include "HomeVariant.h"
+#include "ScreenState.h"
 
 extern String pendingEvt;
 
@@ -44,7 +45,8 @@ void settingsLoad() {
   if (brightPct != 25 && brightPct != 50 && brightPct != 75 && brightPct != 100) brightPct = 78;
   if (sleepMin != 0 && sleepMin != 3 && sleepMin != 5 && sleepMin != 10) sleepMin = 5;
   gIdlePowerOffMs = sleepMin == 0 ? 0 : (uint32_t)sleepMin * 60000UL;
-  panel->setBrightness((uint16_t)brightPct * 255 / 100);
+  screenBright = (uint16_t)brightPct * 255 / 100;
+  panel->setBrightness(screenBright);
 }
 
 void drawSettingsGear() {
@@ -101,7 +103,8 @@ bool settingsTap(int x, int y) {
     int idx = settingsRowAt(x, y);
     if (idx == 0) {
       brightPct = (brightPct == 25) ? 50 : (brightPct == 50) ? 75 : (brightPct == 75) ? 100 : 25;
-      panel->setBrightness((uint16_t)brightPct * 255 / 100);
+      screenBright = (uint16_t)brightPct * 255 / 100;
+      panel->setBrightness(screenBright);
       Preferences pr; pr.begin("motonav", false); pr.putInt("bright", brightPct); pr.end();
       drawSettingsSheet();
       return true;

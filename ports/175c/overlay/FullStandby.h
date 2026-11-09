@@ -199,6 +199,7 @@ void drawWaitingFull(int st) {
 }
 
 void fullHomeTick() {
+  if (screenDark) return;
   if (!onWaitScreen || sliding || page != 0) return;
   if (destSheetOpen || settingsOpen || leanOpen) return;
 

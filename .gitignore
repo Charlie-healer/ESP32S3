@@ -31,6 +31,32 @@ dependencies.lock
 # 其他
 *.log
 *.tmp
+output/
+
+# Android 构建产物与本机签名/Key
+android/**/.gradle/
+android/**/.kotlin/
+android/**/local.properties
+android/**/.local/
+android/**/keystore/
+android/**/outputs/
+android/**/inputs/
+*.apk
+*.ipa
+*.jks
+*.keystore
+
+# iOS 构建产物
+ios/Pods/
+ios/build/
+
+# 固件构建产物/二进制
+firmware/releases/
+firmware/.build/
+firmware/dist/
+ports/175c/.build/
+ports/175c/dist/
 
 # 第三方参考代码（非商业许可 + AGPL 组件，避免误提交）
 MotoNav_stopwatch/
+MotoNav-main/

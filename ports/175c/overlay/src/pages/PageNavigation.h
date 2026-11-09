@@ -432,6 +432,7 @@ void musicTap(int x, int y) {
 
 // 固定页面不因导航距离自动跳转；音乐回执照常刷新。
 void musicTick() {
+  if (screenDark) return;
   if (musicAckUntil && (long)(millis() - musicAckUntil) >= 0) {
     if (musicAck == 1) { musicAck = 4; musicAckUntil = millis() + 2500; }
     else { musicAck = 0; musicAckUntil = 0; }
@@ -443,6 +444,7 @@ void musicTick() {
 
 // 天气列共享请求和数据；保持用户手动选中的页面。
 void weatherTick() {
+  if (screenDark) return;
   if (page != 1 || callOn || pairOn || sliding) return;
   unsigned long now = millis();
   // 还没数据或数据旧了：30 秒再要一次

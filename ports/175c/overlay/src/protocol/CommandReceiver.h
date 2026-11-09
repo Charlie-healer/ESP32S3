@@ -1,4 +1,6 @@
 #pragma once
+#include "../../CpuGovern.h"
+#include "../../PwrKeyScreen.h"
 // 导航状态重置、文字命令和总消息入口。由 MotoNav.ino 按依赖顺序包含，仅编译一次。
 void resetNavState() {
   trafficLightFrame.clear();trafficLightLab.clear();
@@ -356,12 +358,15 @@ void handleText(const String &m) {
   if (m.startsWith("#m,")) { mapOn = m.substring(3).toInt() != 0; navDirty = true; return; }
   if (m.startsWith("#b,")) {
     int b = constrain(m.substring(3).toInt(), 5, 255);
-    if (flushDone) {                                    // v2.2 刷屏任务在用总线时先等它推完
-      xSemaphoreTake(flushDone, portMAX_DELAY);
-      panel->setBrightness(b);
-      xSemaphoreGive(flushDone);
-    } else {
-      panel->setBrightness(b);
+    screenBright = (uint16_t)b;                         // remember for PWR screen-on
+    if (!screenDark) {
+      if (flushDone) {                                  // v2.2 刷屏任务在用总线时先等它推完
+        xSemaphoreTake(flushDone, portMAX_DELAY);
+        panel->setBrightness(b);
+        xSemaphoreGive(flushDone);
+      } else {
+        panel->setBrightness(b);
+      }
     }
     return;
   }

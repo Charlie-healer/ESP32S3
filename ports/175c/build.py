@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Build MotoNav firmware for the Waveshare ESP32-S3-Touch-AMOLED-1.75C.
 
-The vendored upstream tree (MotoNav_stopwatch/) is never modified. Sources
-are copied to ports/175c/.build/, the 1.75C pin_config.h is overlaid, and
-arduino-cli compiles the sketch. The script only builds; it never flashes.
+The complete source tree is kept at firmware/ (the StopWatch fork base).
+Sources are copied to ports/175c/.build/, the 1.75C pin_config.h and the
+ports/175c/overlay files are applied, and arduino-cli compiles the sketch.
+The script only builds; it never flashes.
 """
 
 import argparse
@@ -44,6 +45,15 @@ def find_version(sketch):
         if match:
             return match.group(1)
     fail("无法从固件源码读取 FW_VERSION")
+
+
+def default_upstream():
+    # New repository layout: firmware/ is at the repo root. Older checkouts
+    # kept the whole StopWatch fork in MotoNav_stopwatch/.
+    if (REPO_ROOT / "firmware/boards/175/MotoNav").is_dir() and \
+       (REPO_ROOT / "firmware/libraries").is_dir():
+        return REPO_ROOT
+    return DEFAULT_UPSTREAM
 
 
 def prepare(upstream, clean):
@@ -144,7 +154,7 @@ def package(output, version):
     manifest = {
         "firmware": version,
         "board": BOARD_DESC,
-        "upstream": "MotoNav_stopwatch/firmware/boards/175/MotoNav",
+        "upstream": "firmware/boards/175/MotoNav",
         "pinConfig": "ports/175c/pin_config.h",
         "esp32Core": ESP32_CORE,
         "flashSize": FLASH_SIZE,
@@ -165,8 +175,8 @@ def package(output, version):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--upstream", default=str(DEFAULT_UPSTREAM),
-                        help="MotoNav_stopwatch 路径（默认: 仓库内的副本）")
+    parser.add_argument("--upstream", default=None,
+                        help="包含 firmware/ 的源码根目录（默认: 本仓库 firmware/，否则 MotoNav_stopwatch/）")
     parser.add_argument("--cli", default="arduino-cli", help="arduino-cli 可执行文件")
     parser.add_argument("--jobs", type=int, default=4, help="并行编译任务数 (1-32)")
     parser.add_argument("--clean", action="store_true", help="删除 .build 后重新编译")
@@ -174,7 +184,7 @@ def main():
     if not 1 <= args.jobs <= 32:
         parser.error("--jobs 必须在 1 到 32 之间")
 
-    upstream = Path(args.upstream).resolve()
+    upstream = Path(args.upstream).resolve() if args.upstream else default_upstream()
     sketch, libraries, build_path, output = prepare(upstream, args.clean)
     version = find_version(sketch)
     print("[info] 上游: " + str(upstream))

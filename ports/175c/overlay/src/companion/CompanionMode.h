@@ -334,7 +334,7 @@ class CompanionMode {
     const float screenGyroX = gyro.dps.y;
     const float screenGyroY = gyro.dps.x;
 
-    constexpr float kFilterAmount = 0.32f;
+    constexpr float kFilterAmount = 0.52f;
     if (imuCalibrationCount == 0) {
       filteredAccelX = screenAccelX;
       filteredAccelY = screenAccelY;
@@ -351,12 +351,19 @@ class CompanionMode {
       neutralAccelY += screenAccelY / kImuCalibrationSamples;
       ++imuCalibrationCount;
     } else {
-      // 慢速自适应中立位置；陀螺仪前馈带来灵动注视
+      // Slow neutral adaptation. When the finger is not on the glass, map
+      // the G direction onto the same touch target used by finger tracking,
+      // so the avatar follows G with the faster touch spring and head travel.
       neutralAccelX += (filteredAccelX - neutralAccelX) * 0.00015f;
       neutralAccelY += (filteredAccelY - neutralAccelY) * 0.00015f;
-      avatar.setTiltTarget(-(filteredAccelX - neutralAccelX) / 0.28f,
-                           -(filteredAccelY - neutralAccelY) / 0.28f,
-                           -screenGyroY / 180.0f, screenGyroX / 180.0f);
+      if (!touchPressed && nowMs - lastTouchReleaseAtMs > 220) {
+        const float tx = std::max(-1.0f, std::min(1.0f,
+            -(filteredAccelX - neutralAccelX) / 0.28f));
+        const float ty = std::max(-1.0f, std::min(1.0f,
+            -(filteredAccelY - neutralAccelY) / 0.28f));
+        avatar.setTouchTarget((int16_t)lroundf(CX + tx * 190.0f),
+                              (int16_t)lroundf(CX + ty * 190.0f));
+      }
 
       // G/lean response: strong tilt or acceleration changes expression, not
       // just eye movement. Debounced so normal riding does not spam sounds.

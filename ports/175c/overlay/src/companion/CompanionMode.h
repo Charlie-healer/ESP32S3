@@ -81,6 +81,14 @@ enum class CompanionRole : uint8_t {
   Count,
 };
 
+// Four-direction G sequence: left/right/up/down all within one second.
+static uint32_t gDirLeftAt = 0, gDirRightAt = 0, gDirUpAt = 0, gDirDownAt = 0;
+static uint32_t gDizzyUntil = 0, gDizzyAt = 0;
+static bool gDizzyActive = false;
+static void resetGDirSequence() {
+  gDirLeftAt = gDirRightAt = gDirUpAt = gDirDownAt = 0;
+}
+
 class CompanionMode {
  public:
   static AvatarEngine avatar;
@@ -166,6 +174,10 @@ class CompanionMode {
     gestureCommitted = false;
     touchPressed = false;
     avatar.invalidate();
+    resetGDirSequence();
+    gDizzyActive = false;
+    gDizzyUntil = 0;
+    gDizzyAt = 0;
     noteInteraction();
     startVibration(140, 40);
     Serial.println("[Companion] Entered companion mode (Role: KK)");
@@ -215,6 +227,7 @@ class CompanionMode {
 
   // 屏幕触控互动
   static void handleTouch(bool isDown, int16_t touchX, int16_t touchY) {
+    if (gDizzyActive) return;
     const uint32_t nowMs = millis();
 
     if (isDown) {
@@ -356,17 +369,54 @@ class CompanionMode {
       // so the avatar follows G with the faster touch spring and head travel.
       neutralAccelX += (filteredAccelX - neutralAccelX) * 0.00015f;
       neutralAccelY += (filteredAccelY - neutralAccelY) * 0.00015f;
-      if (!touchPressed && nowMs - lastTouchReleaseAtMs > 220) {
-        const float tx = std::max(-1.0f, std::min(1.0f,
-            -(filteredAccelX - neutralAccelX) / 0.28f));
-        const float ty = std::max(-1.0f, std::min(1.0f,
-            -(filteredAccelY - neutralAccelY) / 0.28f));
-        avatar.setTouchTarget((int16_t)lroundf(CX + tx * 190.0f),
-                              (int16_t)lroundf(CX + ty * 190.0f));
+      const float tx = std::max(-1.0f, std::min(1.0f,
+          (filteredAccelX - neutralAccelX) / 0.28f));
+      const float ty = std::max(-1.0f, std::min(1.0f,
+          (filteredAccelY - neutralAccelY) / 0.28f));
+
+      if (gDizzyActive) {
+        if (static_cast<int32_t>(nowMs - gDizzyUntil) >= 0) {
+          gDizzyActive = false;
+          resetGDirSequence();
+          avatar.show(avatar.baseExpression(), nowMs, false, 260);
+          Serial.println("[Companion] G-spin dizzy finished");
+        } else {
+          avatar.releaseTouch();
+          return;
+        }
       }
 
-      // G/lean response: strong tilt or acceleration changes expression, not
-      // just eye movement. Debounced so normal riding does not spam sounds.
+      if (!touchPressed && nowMs - lastTouchReleaseAtMs > 220) {
+        // G follow now uses the same target as touch, with the direction
+        // inverted to match this panel's physical orientation.
+        avatar.setTouchTarget((int16_t)lroundf(CX + tx * 190.0f),
+                              (int16_t)lroundf(CX + ty * 190.0f));
+
+        // Four-direction sequence: significant left, right, up and down
+        // excursions all inside one second trigger a 2 second dizzy state.
+        constexpr float kDirThreshold = 0.45f;
+        if (tx > kDirThreshold) gDirRightAt = nowMs;
+        if (tx < -kDirThreshold) gDirLeftAt = nowMs;
+        if (ty > kDirThreshold) gDirDownAt = nowMs;
+        if (ty < -kDirThreshold) gDirUpAt = nowMs;
+        if (gDirLeftAt && gDirRightAt && gDirUpAt && gDirDownAt) {
+          const uint32_t oldest = std::min(std::min(gDirLeftAt, gDirRightAt),
+                                           std::min(gDirUpAt, gDirDownAt));
+          if (nowMs - oldest <= 1000 && nowMs - gDizzyAt > 2500) {
+            gDizzyActive = true;
+            gDizzyUntil = nowMs + 2000;
+            gDizzyAt = nowMs;
+            resetGDirSequence();
+            avatar.play(ExpressionId::Dizzy, nowMs,
+                        AvatarEngine::PlaybackMode::Loop, false, 150);
+            startVibration(220, 120);
+            Serial.println("[Companion] G-spin four directions -> DIZZY 2s");
+            return;
+          }
+        }
+      }
+
+      // Strong G still gives a short reaction when not doing the four-way spin.
       static uint32_t lastGReactionMs = 0;
       const float tilt = fmaxf(fabsf(filteredAccelX - neutralAccelX),
                                fabsf(filteredAccelY - neutralAccelY));

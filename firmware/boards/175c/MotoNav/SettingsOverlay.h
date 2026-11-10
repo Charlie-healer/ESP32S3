@@ -102,6 +102,7 @@ bool settingsTap(int x, int y) {
   if (destSheetOpen) return false;
   if (settingsOpen) {
     int idx = settingsRowAt(x, y);
+    Serial.printf("SET tap x=%d y=%d idx=%d\n", x, y, idx);
     if (idx == 0) {
       brightPct = (brightPct == 25) ? 50 : (brightPct == 50) ? 75 : (brightPct == 75) ? 100 : 25;
       screenBright = (uint16_t)(((uint16_t)brightPct * 255 + 50) / 100);
@@ -138,6 +139,13 @@ bool settingsTap(int x, int y) {
       return true;
     }
     if (idx == 5) {
+      settingsOpen = false;
+      companionEnter();
+      return true;
+    }
+    // Extra-large bottom-row target: a tap anywhere in the lower part of
+    // the panel enters Companion even if the exact text row is missed.
+    if (idx < 0 && y > SET_PANEL_Y + SET_PANEL_H - 120) {
       settingsOpen = false;
       companionEnter();
       return true;

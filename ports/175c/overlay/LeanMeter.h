@@ -81,7 +81,7 @@ void drawLeanButton() {
 
 bool leanButtonHit(int x, int y) {
   int dx = x - 346, dy = y - 350;
-  return dx * dx + dy * dy <= 30 * 30;
+  return dx * dx + dy * dy <= 50 * 50;
 }
 
 static void drawLeanZeroButton() {
@@ -209,6 +209,7 @@ void leanTick() {
 }
 
 bool leanTap(int x, int y) {
+  Serial.printf("LEAN tap x=%d y=%d open=%d\n", x, y, leanOpen ? 1 : 0);
   if (leanOpen) {
     // Large exit target: any tap on the top strip, plus the visible X.
     if (y < 110) {

@@ -150,6 +150,7 @@ class CompanionMode {
   // 初始化伴侣模式
   static void begin() {
     if (initialized) return;
+    leanInit();
     setupVibration();
     avatar.begin(&adapter);
     initialized = true;
@@ -356,6 +357,28 @@ class CompanionMode {
       avatar.setTiltTarget(-(filteredAccelX - neutralAccelX) / 0.28f,
                            -(filteredAccelY - neutralAccelY) / 0.28f,
                            -screenGyroY / 180.0f, screenGyroX / 180.0f);
+
+      // G/lean response: strong tilt or acceleration changes expression, not
+      // just eye movement. Debounced so normal riding does not spam sounds.
+      static uint32_t lastGReactionMs = 0;
+      const float tilt = fmaxf(fabsf(filteredAccelX - neutralAccelX),
+                               fabsf(filteredAccelY - neutralAccelY));
+      const float gMag = sqrtf(filteredAccelX * filteredAccelX +
+                               filteredAccelY * filteredAccelY +
+                               screenAccelZ * screenAccelZ);
+      if (!shakeReactionActive && nowMs - lastGReactionMs > 1400) {
+        if (gMag > 1.9f) {
+          lastGReactionMs = nowMs;
+          avatar.play(ExpressionId::Dizzy, nowMs, AvatarEngine::PlaybackMode::Once, false, 180);
+          startVibration(190, 80);
+          Serial.printf("[Companion] G reaction: DIZZY g=%.2f\n", gMag);
+        } else if (tilt > 0.34f) {
+          lastGReactionMs = nowMs;
+          avatar.show(ExpressionId::Surprised, nowMs, true, 180);
+          startVibration(140, 50);
+          Serial.printf("[Companion] G reaction: SURPRISED tilt=%.2f\n", tilt);
+        }
+      }
     }
 
     const float deltaX = screenAccelX - previousAccelX;

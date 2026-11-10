@@ -12,6 +12,9 @@ static es8311_handle_t audioCodec = nullptr;
 static bool audioReady = false;
 static bool audioFailed = false;
 static uint8_t audioI2cAck = 255;
+int soundVolume = 80;
+
+void audioSetVolume(int volume);
 
 bool audioInit() {
   if (audioReady) return true;
@@ -47,14 +50,22 @@ bool audioInit() {
   if (es8311_init(audioCodec, &clk, ES8311_RESOLUTION_16, ES8311_RESOLUTION_16) != ESP_OK ||
       es8311_sample_frequency_config(audioCodec, clk.mclk_frequency, clk.sample_frequency) != ESP_OK ||
       es8311_microphone_config(audioCodec, false) != ESP_OK ||
-      es8311_voice_volume_set(audioCodec, 80, nullptr) != ESP_OK) {
+      es8311_voice_volume_set(audioCodec, soundVolume, nullptr) != ESP_OK) {
     audioFailed = true;
     Serial.println("AUDIO: ES8311 init failed");
     return false;
   }
   audioReady = true;
+  audioSetVolume(soundVolume);
   Serial.println("AUDIO: ES8311 ready");
   return true;
+}
+
+void audioSetVolume(int volume) {
+  if (volume < 0) volume = 0;
+  if (volume > 100) volume = 100;
+  soundVolume = volume;
+  if (audioCodec) es8311_voice_volume_set(audioCodec, soundVolume, nullptr);
 }
 
 // Strength (0-255) and duration mirror the old vibration parameters.

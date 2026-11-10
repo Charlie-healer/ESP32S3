@@ -147,6 +147,7 @@ object CallWatcher {
         for (f in favs.take(8)) items.add(Triple(0, f.name, f.addr))
         val history = try { NavHistory.load(c) } catch (_: Exception) { emptyList() }
         for (h in history.take(8 - items.size)) items.add(Triple(1, h.name, h.addr))
+        android.util.Log.i("MotoNavBLE", "dest sync items=${items.size}")
         items.forEachIndexed { i, item ->
             BleLink.send("#DEST,ADD,${item.first},${item.second},${item.third}")
             val img = TextImage.renderTwoLines(item.second, item.third, 220, 22f, 14f)

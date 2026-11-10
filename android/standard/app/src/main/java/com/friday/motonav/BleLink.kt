@@ -379,6 +379,7 @@ object BleLink {
         verified = true; pairHint = ""; staleCount = 0; needUnbond = false
         gatt?.device?.address?.let { saveLast(it); skipAddr = "" }
         trace("authenticated")
+        handler.postDelayed({ CallWatcher.syncDestinations() }, 1800)
         val g = gatt ?: return
         try { g.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH) } catch (_: Exception) {}
         if (ready) {
@@ -680,6 +681,7 @@ object BleLink {
     }
 
     fun sendImage(slot: Int, w: Int, h: Int, data: ByteArray) {
+        if (slot < 0 || slot >= imgId.size) return
         val img = Img(w, h, data)
         synchronized(lock) {
             val prev = lastImg[slot]

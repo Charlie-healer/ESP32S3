@@ -58,14 +58,15 @@ void setup() {
   {
     Preferences pr;
     pr.begin("motonav", true);
-    qspiMHz = pr.getInt("qspi", 40);
+    qspiMHz = pr.getInt("qspi", 80);
+    if (qspiMHz == 40) qspiMHz = 80;  // old default; screen-on performance
     screenRot = pr.getInt("rot", 0) & 3;                            // v6.2 圆屏方向
     setScreenDeg(pr.getInt("rotd", screenRot * 90), false);         // v6.4 任意角度
     bootBrand = BootAnimation::valid(pr.getInt("bootbrand", 0));
     hidMusicMode = pr.getBool("mediahid", false);
     fastFlushOn = pr.getBool("fastf", true);
     pr.end();
-    if (qspiMHz != 40 && qspiMHz != 60 && qspiMHz != 80) qspiMHz = 40;
+    if (qspiMHz != 40 && qspiMHz != 60 && qspiMHz != 80) qspiMHz = 80;
   }
   if (!gfx->begin(qspiMHz * 1000000)) Serial.println("gfx->begin() failed!");
   panel->setBrightness(128);
@@ -347,5 +348,5 @@ void loop() {
     frameIsMap = false;
   }
   idlePowerCheck();
-  delay(mapNow ? 1 : 10);
+  delay(mapNow ? 1 : 1);   // screen-on input/animation latency
 }

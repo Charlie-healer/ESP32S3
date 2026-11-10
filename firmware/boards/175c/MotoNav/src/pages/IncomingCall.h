@@ -66,7 +66,7 @@ void touchPoll() {
     if (now - idlePollAt < 50) return;
     idlePollAt = now;
   }
-  if (now - lastPoll < 12) return;
+  if (now - lastPoll < 8) return;
   lastPoll = now;
   touchIrq = false;
   if (callAnswerSent && now - callAnswerAt > 4000) callAnswerSent = false;   // 4 秒还在响：允许再按一次

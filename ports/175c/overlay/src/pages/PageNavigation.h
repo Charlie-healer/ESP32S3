@@ -5,7 +5,7 @@
 // 触摸坐标和画面方向相反时改成 1（拖动时画面往手指反方向走就是反了）
 #define TOUCH_FLIP_X 1      // v5.5.1 实测左右是反的
 #define TOUCH_FLIP_Y 1      // 实机坐标确认：上下也反向；点按和手势使用同一校正
-#define DRAG_START  16        // 手指移动超过这么多像素才开始拖
+#define DRAG_START  12        // 手指移动超过这么多像素才开始拖
 uint16_t *slideOld = nullptr, *slideNew = nullptr;
 int16_t chordHalf[LCD_HEIGHT];   // 每一行在圆里的半宽（圆外不用算）
 bool chordReady = false;
@@ -355,7 +355,7 @@ void dragMove(int dx, int dy, unsigned long now) {
   touchVectorToCanvas(vx, vy);
   dx = (int)lroundf(vx); dy = (int)lroundf(vy);
   if (!dragging) {
-    int threshold = page == 2 ? 36 : DRAG_START;
+    int threshold = page == 2 ? 18 : DRAG_START;
     if (abs(dx) < threshold && abs(dy) < threshold) return;
     dragHoriz = abs(dx) >= abs(dy);
     int d = dragHoriz ? dx : dy;
@@ -375,16 +375,16 @@ void dragMove(int dx, int dy, unsigned long now) {
   slideCompose((int)p);
 }
 
-// 松手：拖过 30% 或者往前甩出去 → 顺势滑完；否则弹回
+// 松手：拖过 15% 或明显前甩就完成换页；短回弹也更快。
 void dragEnd() {
   if (!dragging) return;
   int full = dragHoriz ? LCD_WIDTH : LCD_HEIGHT;
-  bool go = dragP > full * 0.3f || (dragV > 0.35f && dragP > 24);
-  if (dragV < -0.35f) go = false;                       // 往回甩：取消
+  bool go = dragP > full * 0.15f || (dragV > 0.20f && dragP > 16);
+  if (dragV < -0.20f) go = false;                       // 往回甩：取消
   float target = go ? full : 0;
   float left = fabsf(target - dragP);
-  int ms = 140 + (int)(260 * left / full);
-  if (go && dragV > 0.5f) ms = max(140, (int)(ms * 0.75f));   // 甩得快就滑得快
+  int ms = 90 + (int)(150 * left / full);
+  if (go && dragV > 0.45f) ms = max(80, (int)(ms * 0.70f));
   slideAnimate(dragP, target, ms);
   if (go) slideCommit(); else slideCancel();
 }

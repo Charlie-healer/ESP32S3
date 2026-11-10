@@ -210,8 +210,8 @@ void leanTick() {
 
 bool leanTap(int x, int y) {
   if (leanOpen) {
-    int dx = x - 410, dy = y - 54;
-    if (dx * dx + dy * dy <= 24 * 24) {
+    // Large exit target: any tap on the top strip, plus the visible X.
+    if (y < 110) {
       leanOpen = false;
       drawWaiting(waitSt);
       return true;

@@ -63,9 +63,11 @@ void leanRead() {
   float ay = accel.mps2.y / 9.80665f;
   float az = accel.mps2.z / 9.80665f;
   gyroX = gyro.dps.x; gyroY = gyro.dps.y; gyroZ = gyro.dps.z;
-  leanLateral = ax;
-  leanLongitudinal = -ay;
-  leanRaw = atan2f(ax, az) * 180.0f / PI;
+  // 1.75C panel axes: sensor Y is horizontal (left/right), sensor X is
+  // vertical (fore/aft). Swap them for the UI so roll and pitch are sane.
+  leanLateral = ay;
+  leanLongitudinal = -ax;
+  leanRaw = atan2f(ay, az) * 180.0f / PI;
   leanAngle = leanRaw - leanZero;
   leanG = sqrtf(ax * ax + ay * ay + az * az);
   if (leanG > leanMaxG) leanMaxG = leanG;

@@ -3,7 +3,7 @@
 #include "ScreenState.h"
 
 // Manual DFS for the precompiled Arduino-ESP32 core (no CONFIG_PM_ENABLE).
-// Idle waiting screen and screen-off run at 80MHz; touch/BLE/pages boost first.
+// Screen-on runs at 240MHz; only screen-off drops to 80MHz.
 void cpuBoost() {
   if (getCpuFrequencyMhz() == 240) return;
   setCpuFrequencyMhz(240);

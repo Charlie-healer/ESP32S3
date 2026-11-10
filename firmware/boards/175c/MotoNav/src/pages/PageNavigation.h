@@ -5,7 +5,7 @@
 // 触摸坐标和画面方向相反时改成 1（拖动时画面往手指反方向走就是反了）
 #define TOUCH_FLIP_X 1      // v5.5.1 实测左右是反的
 #define TOUCH_FLIP_Y 1      // 实机坐标确认：上下也反向；点按和手势使用同一校正
-#define DRAG_START  12        // 手指移动超过这么多像素才开始拖
+#define DRAG_START  8         // 手指移动超过这么多像素才开始拖
 uint16_t *slideOld = nullptr, *slideNew = nullptr;
 int16_t chordHalf[LCD_HEIGHT];   // 每一行在圆里的半宽（圆外不用算）
 bool chordReady = false;
@@ -358,7 +358,7 @@ void dragMove(int dx, int dy, unsigned long now) {
   touchVectorToCanvas(vx, vy);
   dx = (int)lroundf(vx); dy = (int)lroundf(vy);
   if (!dragging) {
-    int threshold = page == 2 ? 18 : DRAG_START;
+    int threshold = page == 2 ? 12 : DRAG_START;
     if (abs(dx) < threshold && abs(dy) < threshold) return;
     dragHoriz = abs(dx) >= abs(dy);
     int d = dragHoriz ? dx : dy;
@@ -382,8 +382,8 @@ void dragMove(int dx, int dy, unsigned long now) {
 void dragEnd() {
   if (!dragging) return;
   int full = dragHoriz ? LCD_WIDTH : LCD_HEIGHT;
-  bool go = dragP > full * 0.15f || (dragV > 0.20f && dragP > 16);
-  if (dragV < -0.20f) go = false;                       // 往回甩：取消
+  bool go = dragP > full * 0.08f || (dragV > 0.12f && dragP > 8);
+  if (dragV < -0.12f) go = false;                       // 往回甩：取消
   float target = go ? full : 0;
   float left = fabsf(target - dragP);
   int ms = 220 + (int)(130 * left / full);

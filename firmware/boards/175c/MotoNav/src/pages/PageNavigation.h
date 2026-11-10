@@ -382,7 +382,7 @@ void dragMove(int dx, int dy, unsigned long now) {
 void dragEnd() {
   if (!dragging) return;
   int full = dragHoriz ? LCD_WIDTH : LCD_HEIGHT;
-  bool go = dragP > full * 0.08f || (dragV > 0.12f && dragP > 8);
+  bool go = dragP > full * 0.05f || (dragV > 0.12f && dragP > 6);
   if (dragV < -0.12f) go = false;                       // 往回甩：取消
   float target = go ? full : 0;
   float left = fabsf(target - dragP);

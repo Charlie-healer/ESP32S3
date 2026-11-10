@@ -44,7 +44,7 @@
 
 | 功能 | StopWatch 原版 | 1.75C 现状 |
 |---|---|---|
-| 倾角 / G 值仪表 | `LeanAngleMeter`/`PageLeanMeter` + BMI270 | 已移植基础版；1.75C 用 QMI8658 新驱动，倾角/G、MAX L/R、ZERO 已做 |
+| 倾角 / G 值仪表 | `LeanAngleMeter`/`PageLeanMeter` + BMI270 | 已移植轻量版；QMI8658 倾角/G、MAX L/R、ZERO；满屏矢量版因流畅度回退 |
 | RTC 时钟 | `RtcRX8130`（RX8130） | 已移植；1.75C 用 ESP32-S3 内部 RTC，`RTC_NOINIT_ATTR` + `esp_clk_rtc_time()` 跨复位恢复 |
 | 真关机 | `PowerManager` + M5PM1 | 未原样移植；1.75C 用 AXP2101，可做等效关机/休眠 |
 | 触摸手势 | `TouchInput` + CST820B | 1.75C 是 CST9217；触摸已适配，Y 轴已修正，手势细节需实测 |

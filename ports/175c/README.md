@@ -82,7 +82,7 @@ python3 ports/175c/sync_board.py
 - RIDER（骑手）/ VICE（完整待机）双主页，设置页 `HOME` 切换并持久化；
 - 8 项目的地抽屉（4 项可视、上下滑滚动）、中文名称图片；
 - 音乐封面/暗化背景、左右滑切歌、双击点赞、播放进度、循环模式、音量；
-- 满屏倾角/G 矢量仪表、MAX G/L/R、ZERO 校准；
+- 轻量倾角/G 仪表、MAX L/R、ZERO 校准；
 - 伴侣模式 AvatarEngine，震动全部替换为 ES8311 声音反馈；
 - RTC 离线时钟：`#TIME` 基准存 RTC_NOINIT，重启后按 RTC 计数补时间；
 - PWR 短按熄屏/亮屏，长按仍由 AXP2101 硬件关机；

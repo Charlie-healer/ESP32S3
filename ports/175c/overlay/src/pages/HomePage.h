@@ -96,6 +96,7 @@ void drawRider(int f, int zph) {
 // 每 0.1 秒检查一次，样子变了才重画（函数名沿用 v3.6）
 void animateCat() {
   if (screenDark) return;
+  if (companionOpen) { companionTick(); return; }
   if (!onWaitScreen || sliding) return;
   if (leanOpen) { leanTick(); return; }
   if (destSheetOpen) {
@@ -204,6 +205,7 @@ void drawWaitingRider(int st) {
 
 void drawWaiting(int st) {
   if (screenDark) return;
+  if (companionOpen) { companionRedraw(); return; }
   settingsLoad();
   if (homeStyle == HOME_FULL) drawWaitingFull(st);
   else drawWaitingRider(st);

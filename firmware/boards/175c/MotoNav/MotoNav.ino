@@ -5,6 +5,7 @@
 #include "src/core/FirmwareConfig.h"
 #include <Arduino.h>
 #include "src/core/DeviceContext.h"
+#include "src/audio/AudioFeedback.h"
 #include "src/core/FunctionDeclarations.h"
 #include "src/connectivity/Bluetooth.h"
 #include "src/display/DisplayPipeline.h"
@@ -51,6 +52,7 @@ void setup() {
   Wire.begin(IIC_SDA, IIC_SCL);
   touchInit();                                         // v5.2 触摸屏
   batInit();                                           // v6.8 电源芯片（电量）
+  Serial.printf("AUDIO init=%d\n", audioInit() ? 1 : 0);  // 1.75C ES8311 音频反馈
 
   // v2.3 读取保存的屏幕数据线速度（默认 40MHz，和官方示例一样）
   {
@@ -146,6 +148,7 @@ void setup() {
       (unsigned long)ipc.freeMinimum[0],(unsigned long)ipc.freeMinimum[1]);
   idlePowerOffReset(&idlePowerOffTimer, millis());
   Serial.println(String("MotoNav ready, firmware ") + FW_VERSION);
+  Serial.printf("AUDIO ready=%d\n", audioReady ? 1 : 0);
 }
 
 #include "src/power/CpuGovern.h"

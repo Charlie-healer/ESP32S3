@@ -14,6 +14,13 @@ void drawNavFrame();
 // v7.8 音乐页：歌名/歌手图片栏 5/6；#Z,有会话,播放中,按钮位掩码。
 bool musicLiked = false;
 int musicVolume = 50;
+int musicDuration = 0;
+int musicPos = 0;
+uint32_t musicPosAt = 0;
+int musicRepeat = 0;
+uint32_t musicCoverTapAt = 0;
+uint8_t musicCoverTapCount = 0;
+bool musicCoverTapPending = false;
 
 void drawMusicHeart() {
   const int hx = 73, hy = 258, r = 9;
@@ -139,8 +146,23 @@ void drawMusic() {
       double elapsed = appleMedia.playback.elapsed + appleMedia.playback.rate * (millis() - appleMedia.playbackAt) / 1000.0;
       int sec = (int)constrain(elapsed, 0.0, duration), total = (int)duration;
       char time[32]; snprintf(time, sizeof(time), "%d:%02d / %d:%02d", sec/60, sec%60, total/60, total%60);
-      printCentered(time, CX, 405, 2, C_GREY);
+      printCentered(time, CX, 242, 2, C_GREY);
     }
+  } else if (musicDuration > 0) {
+    int elapsed = musicPos + (musicPlaying ? (int)((millis() - musicPosAt) / 1000UL) : 0);
+    if (elapsed < 0) elapsed = 0;
+    if (elapsed > musicDuration) elapsed = musicDuration;
+    int x0 = 55, x1 = 385, y = 232;
+    gfx->fillRoundRect(x0, y, x1 - x0, 5, 2, 0x1082);
+    int fw = (x1 - x0) * elapsed / musicDuration;
+    if (fw > 0) gfx->fillRoundRect(x0, y, fw, 5, 2, C_CYAN);
+    char time[32]; snprintf(time, sizeof(time), "%d:%02d / %d:%02d", elapsed/60, elapsed%60, musicDuration/60, musicDuration%60);
+    printCentered(time, CX, 242, 1, C_GREY);
+    const char *rm = musicRepeat == 1 ? "ONE" : musicRepeat == 2 ? "SHUF" : "LOOP";
+    printCentered(String("R ") + rm, 398, 258, 1, C_GREY);
+    int rx = 398, ry = 240;
+    aaDisc(rx, ry, 13, 0x18E3);
+    printCentered("R", rx, ry - 7, 2, C_WHITE);
   } else printCentered("SWIPE LEFT TO RETURN", CX, 425, 1, C_GREY);
   drawMusicHeart();
   drawMusicVolume();
@@ -392,6 +414,16 @@ void musicTap(int x, int y) {
   touchVectorToCanvas(mdx, mdy);
   int mx = lroundf(CX + mdx), my = lroundf(CX + mdy);
 
+  if (!hidMusicMode && musicDuration > 0) {
+    int rdx = mx - 398, rdy = my - 240;
+    if (rdx * rdx + rdy * rdy <= 24 * 24) {
+      musicRepeat = (musicRepeat + 1) % 3;
+      pendingEvt = String("T,M,R,") + musicRepeat;
+      musicAck = 1; musicAckUntil = millis() + 2500;
+      musicDirty = true;
+      return;
+    }
+  }
   int hdx = mx - 73, hdy = my - 258;
   if (hdx * hdx + hdy * hdy <= 26 * 26) {
     musicLiked = !musicLiked;
@@ -430,6 +462,51 @@ void musicTap(int x, int y) {
   musicAck = 1; musicAckUntil = millis() + 2500; musicDirty = true;
 }
 
+
+void musicCoverAction(int dir) {
+  if (page != 2 || callOn || pairOn || !bleConnected || !bleAuthed) return;
+  if (hidMusicMode) {
+    int button = dir > 0 ? 2 : 0;
+    if (!hidMediaReady() && !appleMedia.controlReady(button)) {
+      musicAck = 7; musicAckUntil = millis() + 2500; musicDirty = true; return;
+    }
+    if (!hidMediaReady()) {
+      musicAck = appleMedia.control(button) ? 11 : 10;
+      musicAckUntil = millis() + 2500; musicDirty = true; return;
+    }
+    hidPulses.enqueue(button);
+    return;
+  }
+  if (!musicHave) { musicAck = 5; musicAckUntil = millis() + 2500; musicDirty = true; return; }
+  pendingEvt = String("T,M,") + (dir > 0 ? "N" : "P") + ",0,0,-1";
+  musicAck = 1; musicAckUntil = millis() + 2500; musicDirty = true;
+}
+
+void musicCoverTap() {
+  if (page != 2 || callOn || pairOn || !bleConnected || !bleAuthed) return;
+  if (hidMusicMode) {
+    if (!hidMediaReady() && !appleMedia.controlReady(1)) {
+      musicAck = 7; musicAckUntil = millis() + 2500; musicDirty = true; return;
+    }
+    if (!hidMediaReady()) { musicAck = appleMedia.control(1) ? 11 : 10; musicAckUntil = millis() + 2500; musicDirty = true; return; }
+    hidPulses.enqueue(1);
+    return;
+  }
+  const uint32_t now = millis();
+  if (now - musicCoverTapAt > 360) musicCoverTapCount = 0;
+  ++musicCoverTapCount;
+  musicCoverTapAt = now;
+  if (musicCoverTapCount >= 2) {
+    musicCoverTapCount = 0;
+    musicCoverTapPending = false;
+    musicLiked = !musicLiked;
+    pendingEvt = String("T,M,L,") + (musicLiked ? 1 : 0);
+    musicAck = 1; musicAckUntil = millis() + 2500; musicDirty = true;
+  } else {
+    musicCoverTapPending = true;
+  }
+}
+
 // 固定页面不因导航距离自动跳转；音乐回执照常刷新。
 void musicTick() {
   if (screenDark) return;
@@ -438,7 +515,20 @@ void musicTick() {
     else { musicAck = 0; musicAckUntil = 0; }
     musicDirty = true;
   }
+  if (musicCoverTapPending && millis() - musicCoverTapAt >= 360) {
+    musicCoverTapPending = false;
+    if (musicCoverTapCount == 1 && !hidMusicMode && musicHave) {
+      pendingEvt = "T,M,T,0,0,-1";
+      musicAck = 1; musicAckUntil = millis() + 2500;
+    }
+    musicCoverTapCount = 0;
+    musicDirty = true;
+  }
   if (page != 2 || callOn || pairOn || sliding) return;
+  static uint32_t progressAt = 0;
+  if (musicPlaying && musicDuration > 0 && millis() - progressAt >= 1000) {
+    progressAt = millis(); musicDirty = true;
+  }
   if (musicDirty) { musicDirty = false; drawMusic(); }
 }
 

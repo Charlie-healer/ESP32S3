@@ -144,16 +144,16 @@ object CallWatcher {
         BleLink.send("#DEST,CLR")
         val items = ArrayList<Triple<Int, String, String>>()
         val favs = try { FavoritePlaces.load(c) } catch (_: Exception) { emptyList() }
-        for (f in favs.take(4)) items.add(Triple(0, f.name, f.addr))
+        for (f in favs.take(8)) items.add(Triple(0, f.name, f.addr))
         val history = try { NavHistory.load(c) } catch (_: Exception) { emptyList() }
-        for (h in history.take(4 - items.size)) items.add(Triple(1, h.name, h.addr))
+        for (h in history.take(8 - items.size)) items.add(Triple(1, h.name, h.addr))
         items.forEachIndexed { i, item ->
             BleLink.send("#DEST,ADD,${item.first},${item.second},${item.third}")
             val img = TextImage.renderTwoLines(item.second, item.third, 220, 22f, 14f)
             if (img != null) BleLink.sendImage(13 + i, img.w, img.h, img.data)
             else BleLink.sendImage(13 + i, 0, 0, ByteArray(0))
         }
-        for (i in items.size until 4) BleLink.sendImage(13 + i, 0, 0, ByteArray(0))
+        for (i in items.size until 8) BleLink.sendImage(13 + i, 0, 0, ByteArray(0))
     }
 
     private fun navigateDestination(idx: Int) {

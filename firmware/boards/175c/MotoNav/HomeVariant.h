@@ -11,8 +11,13 @@ enum HomeStyle : uint8_t {
 
 HomeStyle homeStyle = HOME_RIDER;
 
+bool companionOpen = false;
 void drawWaitingFull(int st);
 void fullHomeTick();
+void companionEnter();
+void companionRedraw();
+void companionTick();
+void companionTouchPoll();
 
 static inline const char *homeStyleName(HomeStyle s) {
   return s == HOME_FULL ? "VICE" : "RIDER";

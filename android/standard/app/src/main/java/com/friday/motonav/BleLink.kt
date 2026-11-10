@@ -151,7 +151,7 @@ object BleLink {
     private val lastState = LinkedHashMap<String, String>()
     private class Img(val w: Int, val h: Int, val data: ByteArray)
     private val lastImg = HashMap<Int, Img?>()
-    private val imgId = IntArray(17)               // 0..12 原有；13..16 目的地抽屉名称图
+    private val imgId = IntArray(21)               // 0..12 原有；13..20 目的地抽屉名称图
 
     // ---- 给界面看的统计 ----
     @Volatile var sentCount = 0

@@ -6,6 +6,8 @@
 //   firmware -> phone: T,DEST_GO,<idx>   route to the selected item
 //   phone -> firmware: #DEST,CLR
 //   phone -> firmware: #DEST,ADD,<type>,<name>,<addr>
+// The App sends up to 8 items; the round panel shows 4 at a time and swipes
+// vertically through the list.
 
 extern String pendingEvt;   // defined in IncomingCall.h
 
@@ -15,28 +17,49 @@ extern String pendingEvt;   // defined in IncomingCall.h
 #define DEST_PANEL_SIZE 368
 #define DEST_PANEL_RADIUS 70
 #define DEST_ITEM_GAP 12
+#define DEST_VISIBLE 4
 
 int destSheetShown() {
   int s = destItemCount;
-  if (s > 4) s = 4;
+  if (s > MAX_DEST_ITEMS) s = MAX_DEST_ITEMS;
   if (s < 0) s = 0;
   return s;
 }
 
-int destItemH(int shown) {
-  if (shown >= 4) return 54;
-  if (shown == 3) return 72;
+int destVisibleShown() {
+  int s = destSheetShown();
+  return s > DEST_VISIBLE ? DEST_VISIBLE : s;
+}
+
+void drawDestSheet();
+
+int destClampScroll(int offset) {
+  int maxOffset = destSheetShown() - destVisibleShown();
+  if (maxOffset < 0) maxOffset = 0;
+  if (offset < 0) offset = 0;
+  if (offset > maxOffset) offset = maxOffset;
+  return offset;
+}
+
+void destScrollBy(int delta) {
+  destScrollOffset = destClampScroll(destScrollOffset + delta);
+  if (destSheetOpen) drawDestSheet();
+}
+
+int destItemH(int visible) {
+  if (visible >= 4) return 54;
+  if (visible == 3) return 72;
   return 76;
 }
 
 int destSheetX() { return CX - DEST_PANEL_SIZE / 2; }
 int destSheetY() { return CX - DEST_PANEL_SIZE / 2; }
 
-int destListStartY(int shown) {
-  if (shown <= 0) return destSheetY() + 60;
-  int ih = destItemH(shown);
-  int gap = shown >= 4 ? 10 : DEST_ITEM_GAP;
-  int total = shown * ih + (shown - 1) * gap;
+int destListStartY(int visible) {
+  if (visible <= 0) return destSheetY() + 60;
+  int ih = destItemH(visible);
+  int gap = visible >= 4 ? 10 : DEST_ITEM_GAP;
+  int total = visible * ih + (visible - 1) * gap;
   int areaTop = destSheetY() + 60;
   int areaBottom = destSheetY() + DEST_PANEL_SIZE - 44;
   int y = areaTop + (areaBottom - areaTop - total) / 2;
@@ -88,15 +111,19 @@ void drawDestClose() {
 
 int destSheetItemAt(int x, int y) {
   if (!destSheetOpen) return -1;
-  int shown = destSheetShown();
-  int ih = destItemH(shown);
-  int gap = shown >= 4 ? 10 : DEST_ITEM_GAP;
+  int visible = destVisibleShown();
+  int ih = destItemH(visible);
+  int gap = visible >= 4 ? 10 : DEST_ITEM_GAP;
   int ix = destSheetX() + 16;
   int iw = DEST_PANEL_SIZE - 32;
-  int startY = destListStartY(shown);
-  for (int i = 0; i < shown; i++) {
+  int startY = destListStartY(visible);
+  int offset = destClampScroll(destScrollOffset);
+  for (int i = 0; i < visible; i++) {
     int iy = startY + i * (ih + gap);
-    if (x >= ix && x <= ix + iw && y >= iy && y <= iy + ih) return i;
+    if (x >= ix && x <= ix + iw && y >= iy && y <= iy + ih) {
+      int idx = offset + i;
+      return idx < destSheetShown() ? idx : -1;
+    }
   }
   return -1;
 }
@@ -105,10 +132,13 @@ void drawDestSheet() {
   if (!destSheetOpen) return;
   Serial.println("DEST draw sheet");
 
-  int shown = destSheetShown();
+  int total = destSheetShown();
+  int visible = destVisibleShown();
+  destScrollOffset = destClampScroll(destScrollOffset);
+  int offset = destScrollOffset;
   int x0 = destSheetX(), y0 = destSheetY();
-  int ih = destItemH(shown);
-  int gap = shown >= 4 ? 10 : DEST_ITEM_GAP;
+  int ih = destItemH(visible);
+  int gap = visible >= 4 ? 10 : DEST_ITEM_GAP;
   int ix = x0 + 16, iw = DEST_PANEL_SIZE - 32;
 
   gfx->fillRoundRect(x0, y0, DEST_PANEL_SIZE, DEST_PANEL_SIZE, DEST_PANEL_RADIUS, 0x1082);
@@ -116,29 +146,35 @@ void drawDestSheet() {
   printCentered("DESTINATIONS", CX, y0 + 20, 2, C_WHITE);
   drawDestClose();
 
-  if (shown == 0) {
+  if (total == 0) {
     printCentered("NO DESTINATIONS", CX, y0 + 150, 2, C_GREY);
     printCentered("Open app to sync", CX, y0 + 184, 1, C_GREY);
   } else {
-    int startY = destListStartY(shown);
-    for (int i = 0; i < shown; i++) {
+    int startY = destListStartY(visible);
+    for (int i = 0; i < visible; i++) {
+      int idx = offset + i;
+      if (idx >= total) break;
       int iy = startY + i * (ih + gap);
       gfx->fillRoundRect(ix, iy, iw, ih, 12, 0x18E3);
-      if (destItems[i].type == 0) {
+      if (destItems[idx].type == 0) {
         destFillStar(ix + 20, iy + ih / 2, 10, 0xFDE0);
       } else {
         aaDisc(ix + 20, iy + ih / 2, 8, C_CYAN);
       }
-      if (imgs[13 + i].showW > 0 && imgs[13 + i].showH > 0) {
-        int iy0 = iy + (ih - imgs[13 + i].showH) / 2;
-        drawTextImg(13 + i, iy0, 0xFF);
+      if (imgs[13 + idx].showW > 0 && imgs[13 + idx].showH > 0) {
+        int iy0 = iy + (ih - imgs[13 + idx].showH) / 2;
+        drawTextImg(13 + idx, iy0, 0xFF);
       } else {
-        printCentered(String("ITEM ") + (i + 1), CX, iy + (ih - 16) / 2, 2, C_WHITE);
+        printCentered(String("ITEM ") + (idx + 1), CX, iy + (ih - 16) / 2, 2, C_WHITE);
       }
+    }
+    if (total > DEST_VISIBLE) {
+      printCentered(String(offset + 1) + "-" + String(offset + visible) + " / " + String(total),
+                    CX, y0 + DEST_PANEL_SIZE - 42, 1, 0x7BEF);
     }
   }
 
-  printCentered("tap item to route / X closes", CX, y0 + DEST_PANEL_SIZE - 22, 1, C_GREY);
+  printCentered("tap route / swipe scroll / X closes", CX, y0 + DEST_PANEL_SIZE - 22, 1, C_GREY);
   needFlush = true;
 }
 
@@ -166,6 +202,7 @@ void destTap(int x, int y) {
   }
   if (destStarHit(x, y)) {
     destSheetOpen = true;
+    destScrollOffset = 0;
     pendingEvt = "T,DEST_Q";
     drawDestSheet();
   }
@@ -174,6 +211,7 @@ void destTap(int x, int y) {
 bool destHandleCommand(const String &m) {
   if (m == "#DEST,CLR") {
     destItemsClear();
+    destScrollOffset = 0;
     if (destSheetOpen) drawDestSheet();
     return true;
   }

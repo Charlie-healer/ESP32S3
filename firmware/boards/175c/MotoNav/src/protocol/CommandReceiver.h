@@ -115,9 +115,18 @@ void handleText(const String &m) {
     musicAckUntil = millis() + 2500; musicDirty = true; return;
   }
   if (m.startsWith("#Z,")) {
-    int have = 0, play = 0, actions = 0;
-    if (sscanf(m.c_str(), "#Z,%d,%d,%d", &have, &play, &actions) == 3) {
-      if (!hidMusicMode) { musicHave = have != 0; musicPlaying = play != 0; musicActions = actions & 7; } musicDirty = true;
+    int have = 0, play = 0, actions = 0, dur = -1, pos = -1;
+    int got = sscanf(m.c_str(), "#Z,%d,%d,%d,%d,%d", &have, &play, &actions, &dur, &pos);
+    if (got >= 3) {
+      if (!hidMusicMode) {
+        musicHave = have != 0; musicPlaying = play != 0; musicActions = actions & 7;
+        if (got >= 5 && dur >= 0 && pos >= 0) {
+          musicDuration = dur;
+          musicPos = pos;
+          musicPosAt = millis();
+        }
+      }
+      musicDirty = true;
     }
     return;
   }

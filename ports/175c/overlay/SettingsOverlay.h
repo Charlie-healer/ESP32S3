@@ -15,12 +15,12 @@ uint32_t gIdlePowerOffMs = 300000;
 int sleepMin = 5;
 
 #define SET_PANEL_X 68
-#define SET_PANEL_Y 64
+#define SET_PANEL_Y 48
 #define SET_PANEL_W 330
-#define SET_PANEL_H 352
+#define SET_PANEL_H 390
 #define SET_ROW_X (SET_PANEL_X + 16)
 #define SET_ROW_W (SET_PANEL_W - 32)
-#define SET_ROW0_Y 112
+#define SET_ROW0_Y 96
 #define SET_ROW_STEP 52
 
 static const char *themeName(int idx) {
@@ -70,7 +70,7 @@ bool settingsGearHit(int x, int y) {
 int settingsRowAt(int x, int y) {
   if (!settingsOpen) return -1;
   if (x < SET_ROW_X || x > SET_ROW_X + SET_ROW_W) return -1;
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 6; i++) {
     int ry = SET_ROW0_Y + i * SET_ROW_STEP;
     if (y >= ry - 22 && y <= ry + 22) return i;
   }
@@ -83,7 +83,7 @@ void drawSettingsSheet() {
   gfx->drawRoundRect(SET_PANEL_X, SET_PANEL_Y, SET_PANEL_W, SET_PANEL_H, 20, 0x4208);
   printCentered("SETTINGS", CX, SET_PANEL_Y + 16, 2, C_WHITE);
 
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 6; i++) {
     int ry = SET_ROW0_Y + i * SET_ROW_STEP;
     gfx->fillRoundRect(SET_ROW_X, ry - 22, SET_ROW_W, 44, 12, 0x18E3);
   }
@@ -92,6 +92,7 @@ void drawSettingsSheet() {
   printCentered(String("THEME    ") + themeName(settingsThemeIdx), CX, SET_ROW0_Y + 2 * SET_ROW_STEP - 10, 2, C_WHITE);
   printCentered(String("SLEEP    ") + (sleepMin == 0 ? String("NEVER") : String(sleepMin) + " MIN"), CX, SET_ROW0_Y + 3 * SET_ROW_STEP - 10, 2, C_WHITE);
   printCentered(String("HOME     ") + homeStyleName(homeStyle), CX, SET_ROW0_Y + 4 * SET_ROW_STEP - 10, 2, C_WHITE);
+  printCentered("COMPANION", CX, SET_ROW0_Y + 5 * SET_ROW_STEP - 10, 2, C_WHITE);
 
   printCentered("tap row to change / outside closes", CX, SET_PANEL_Y + SET_PANEL_H - 24, 1, C_GREY);
   needFlush = true;
@@ -134,6 +135,11 @@ bool settingsTap(int x, int y) {
       Preferences pr; pr.begin("motonav", false); pr.putInt("home", (int)homeStyle); pr.end();
       settingsOpen = false;
       drawWaiting(waitSt);
+      return true;
+    }
+    if (idx == 5) {
+      settingsOpen = false;
+      companionEnter();
       return true;
     }
     if (x < SET_PANEL_X || x > SET_PANEL_X + SET_PANEL_W ||

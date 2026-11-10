@@ -36,6 +36,11 @@ int16_t touchX0 = 0, touchY0 = 0, touchX1 = 0, touchY1 = 0;
 void dragMove(int dx, int dy, unsigned long now);   // v5.5 跟手换页
 int musicButtonAt(int x, int y);
 void musicTap(int x, int y);
+void musicCoverAction(int dir);
+void musicCoverTap();
+void destScrollBy(int delta);
+bool musicCoverTouch = false;
+bool destSwipeTouch = false;
 void dragEnd();
 void dragAbort();
 
@@ -52,6 +57,7 @@ static void touchPointToCanvas(int &x, int &y) {
 
 void touchPoll() {
   if (screenDark) return;
+  if (companionOpen) { companionTouchPoll(); return; }
   static unsigned long lastPoll = 0;
   unsigned long now = millis();
   if (!touchOK) return;
@@ -72,19 +78,46 @@ void touchPoll() {
       touchHoldAt = now;
       touchX0 = touchX1 = x[0]; touchY0 = touchY1 = y[0];
       pendingEvt = "T,P," + String(x[0]) + "," + String(y[0]);
-      if (page == 2 && !callOn && !pairOn) { musicPressed = musicButtonAt(x[0], y[0]); musicDirty = true; }
+      if (destSheetOpen) destSwipeTouch = true;
+      if (page == 2 && !callOn && !pairOn) {
+        int mx = touchX0, my = touchY0;
+        touchPointToCanvas(mx, my);
+        musicCoverTouch = mx >= 48 && mx <= 148 && my >= 136 && my <= 232;
+        musicPressed = musicCoverTouch ? -1 : musicButtonAt(x[0], y[0]);
+        musicDirty = true;
+      }
       if (fxOn && !callOn) { stopArriveFx(); touchEat = true; }          // v7.1 点一下结束到达特效
     }
     touchX1 = x[0]; touchY1 = y[0];
     touchLastSeen = now;
     if (callOn || pairOn || touchEat || fxOn) dragAbort();
-    else if (!destSheetOpen && !settingsOpen && !leanOpen) dragMove(touchX1 - touchX0, touchY1 - touchY0, now);
+    else if (!musicCoverTouch && !destSheetOpen && !settingsOpen && !leanOpen) dragMove(touchX1 - touchX0, touchY1 - touchY0, now);
   } else if (touchDown && now - touchLastSeen > 80) {
     touchDown = false;
     touchHoldAt = 0;
     if (callOn || pairOn || touchEat || fxOn) dragAbort();
-    else {
-      if (page == 2 && abs(touchX1 - touchX0) < 36 && abs(touchY1 - touchY0) < 36) musicTap(touchX0, touchY0);
+    else if (destSheetOpen) {
+      int tx = touchX0, ty = touchY0;
+      touchPointToCanvas(tx, ty);
+      if (destSwipeTouch) {
+        float vx = touchX1 - touchX0, vy = touchY1 - touchY0;
+        touchVectorToCanvas(vx, vy);
+        if (fabsf(vy) >= 40 && fabsf(vy) > fabsf(vx)) destScrollBy(vy > 0 ? 1 : -1);
+        else destTap(tx, ty);
+      } else {
+        destTap(tx, ty);
+      }
+      destSwipeTouch = false;
+    } else {
+      if (page == 2 && musicCoverTouch) {
+        float vx = touchX1 - touchX0, vy = touchY1 - touchY0;
+        touchVectorToCanvas(vx, vy);
+        if (fabsf(vx) >= 40 && fabsf(vx) > fabsf(vy)) musicCoverAction(vx < 0 ? 1 : -1);
+        else if (fabsf(vx) < 20 && fabsf(vy) < 20) musicCoverTap();
+        musicCoverTouch = false;
+      } else if (page == 2 && abs(touchX1 - touchX0) < 36 && abs(touchY1 - touchY0) < 36) {
+        musicTap(touchX0, touchY0);
+      }
       if (page == 1 && abs(touchX1 - touchX0) < 36 && abs(touchY1 - touchY0) < 36) weatherTap();
       if (page == 0 && abs(touchX1 - touchX0) < 36 && abs(touchY1 - touchY0) < 36) {
         int tx = touchX0, ty = touchY0;
@@ -109,6 +142,8 @@ void touchPoll() {
     pendingEvt = "T,A";
   }
 }
+
+#include "../../CompanionOverlay.h"
 
 // 电话听筒：一段拱形的圆点串当手柄，两头各一个大点当听筒和话筒，整体斜过来（常见的电话图标）
 void drawHandset(float cx, float cy, float r, uint16_t c) {

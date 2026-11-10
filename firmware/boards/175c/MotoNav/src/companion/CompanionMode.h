@@ -322,7 +322,7 @@ class CompanionMode {
       leanInit();
       if (!imuOK) return;
     }
-    if (!imu.isDataReady()) return;
+    if (!imu.isDataReady(1)) return;  // accelerometer drives tilt/G response
     AccelerometerData accel;
     GyroscopeData gyro;
     if (!imu.readAccel(accel)) return;
@@ -366,13 +366,13 @@ class CompanionMode {
       const float gMag = sqrtf(filteredAccelX * filteredAccelX +
                                filteredAccelY * filteredAccelY +
                                screenAccelZ * screenAccelZ);
-      if (!shakeReactionActive && nowMs - lastGReactionMs > 1400) {
-        if (gMag > 1.9f) {
+      if (!shakeReactionActive && nowMs - lastGReactionMs > 650) {
+        if (gMag > 1.7f) {
           lastGReactionMs = nowMs;
           avatar.play(ExpressionId::Dizzy, nowMs, AvatarEngine::PlaybackMode::Once, false, 180);
           startVibration(190, 80);
           Serial.printf("[Companion] G reaction: DIZZY g=%.2f\n", gMag);
-        } else if (tilt > 0.34f) {
+        } else if (tilt > 0.28f) {
           lastGReactionMs = nowMs;
           avatar.show(ExpressionId::Surprised, nowMs, true, 180);
           startVibration(140, 50);

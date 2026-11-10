@@ -50,9 +50,11 @@ void leanInit() {
 void leanRead() {
   if (!imuOK) return;
   static unsigned long last = 0;
-  if (millis() - last < 50) return;
+  if (millis() - last < 20) return;
   last = millis();
-  if (!imu.isDataReady()) return;
+  // Only wait for fresh accelerometer data; gyro is optional here and its
+  // status bit can otherwise make the angle/G display feel laggy.
+  if (!imu.isDataReady(1)) return;
   AccelerometerData accel;
   GyroscopeData gyro;
   if (!imu.readAccel(accel)) return;
@@ -203,7 +205,7 @@ void leanTick() {
   if (screenDark || !leanOpen) return;
   leanRead();
   static unsigned long lastDraw = 0;
-  if (millis() - lastDraw < 100) return;
+  if (millis() - lastDraw < 50) return;
   lastDraw = millis();
   drawLeanSheet();
 }

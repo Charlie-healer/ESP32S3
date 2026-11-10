@@ -64,7 +64,7 @@ void setup() {
     setScreenDeg(pr.getInt("rotd", screenRot * 90), false);         // v6.4 任意角度
     bootBrand = BootAnimation::valid(pr.getInt("bootbrand", 0));
     hidMusicMode = pr.getBool("mediahid", false);
-    fastFlushOn = pr.getBool("fastf", true);
+    fastFlushOn = true;  // keep the DMA fast path; failures are logged, not persisted
     pr.end();
     if (qspiMHz != 40 && qspiMHz != 60 && qspiMHz != 80) qspiMHz = 80;
   }
@@ -85,6 +85,7 @@ void setup() {
   gfx->flush();
   initRotSpan();                                                    // v6.4 任意角度用
   initDoubleBuffer();                                               // v2.2 双缓冲 + 核心 0 刷屏
+  Serial.printf("DISPLAY fast=%d qspi=%dMHz fastf=%d\n", fastDev ? 1 : 0, qspiMHz, fastFlushOn ? 1 : 0);
   helperInit();                                                     // v5.7 另一个核心帮忙画底图
 
   if (bootBrand != BootAnimation::Off && gfx->getFramebuffer()) {
@@ -150,6 +151,7 @@ void setup() {
   idlePowerOffReset(&idlePowerOffTimer, millis());
   Serial.println(String("MotoNav ready, firmware ") + FW_VERSION);
   Serial.printf("AUDIO ready=%d i2c=%u\n", audioReady ? 1 : 0, (unsigned)audioI2cAck);
+  Serial.printf("DISPLAY fast=%d qspi=%dMHz fastf=%d\n", fastDev ? 1 : 0, qspiMHz, fastFlushOn ? 1 : 0);
 }
 
 #include "src/power/CpuGovern.h"

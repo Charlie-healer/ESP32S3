@@ -328,13 +328,16 @@ void slideCancel() {
 // 从 p0 顺势滑到 p1（先快后慢）；ms = 时长
 void slideAnimate(float p0, float p1, int ms) {
   unsigned long t0 = millis();
+  int frames = 0;
   for (;;) {
     float t = (millis() - t0) / (float)ms;
     if (t >= 1) break;
-    float e = 1 - (1 - t) * (1 - t) * (1 - t);         // ease-out
+    float e = 1 - (1 - t) * (1 - t);                   // quadratic ease-out
     slideCompose((int)(p0 + (p1 - p0) * e));
+    ++frames;
   }
   slideCompose((int)p1);
+  Serial.printf("SLIDE ms=%d frames=%d actual=%lu\n", ms, frames, millis() - t0);
 }
 
 // 触摸向量统一换算：先修正芯片坐标的镜像，再按刷屏的逆旋转映射到画布。
@@ -383,8 +386,8 @@ void dragEnd() {
   if (dragV < -0.20f) go = false;                       // 往回甩：取消
   float target = go ? full : 0;
   float left = fabsf(target - dragP);
-  int ms = 90 + (int)(150 * left / full);
-  if (go && dragV > 0.45f) ms = max(80, (int)(ms * 0.70f));
+  int ms = 220 + (int)(130 * left / full);
+  if (go && dragV > 0.45f) ms = max(170, (int)(ms * 0.80f));
   slideAnimate(dragP, target, ms);
   if (go) slideCommit(); else slideCancel();
 }

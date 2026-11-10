@@ -148,7 +148,7 @@ void setup() {
       (unsigned long)ipc.freeMinimum[0],(unsigned long)ipc.freeMinimum[1]);
   idlePowerOffReset(&idlePowerOffTimer, millis());
   Serial.println(String("MotoNav ready, firmware ") + FW_VERSION);
-  Serial.printf("AUDIO ready=%d\n", audioReady ? 1 : 0);
+  Serial.printf("AUDIO ready=%d i2c=%u\n", audioReady ? 1 : 0, (unsigned)audioI2cAck);
 }
 
 #include "src/power/CpuGovern.h"

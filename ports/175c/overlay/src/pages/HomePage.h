@@ -97,8 +97,8 @@ void drawRider(int f, int zph) {
 void animateCat() {
   if (screenDark) return;
   if (companionOpen) { companionTick(); return; }
-  if (!onWaitScreen || sliding) return;
   if (leanOpen) { leanTick(); return; }
+  if (!onWaitScreen || sliding) return;
   if (destSheetOpen) {
     if (destImageDirty) { destImageDirty = false; drawDestSheet(); }
     return;

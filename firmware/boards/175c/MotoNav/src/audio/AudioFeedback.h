@@ -11,6 +11,7 @@ I2SClass audioI2S;
 static es8311_handle_t audioCodec = nullptr;
 static bool audioReady = false;
 static bool audioFailed = false;
+static uint8_t audioI2cAck = 255;
 
 bool audioInit() {
   if (audioReady) return true;
@@ -25,8 +26,11 @@ bool audioInit() {
   }
 
   pinMode(PA, OUTPUT);
-  digitalWrite(PA, LOW);
+  digitalWrite(PA, HIGH);  // official 1.75C ES8311 example keeps PA enabled
 
+  Wire.beginTransmission(ES8311_ADDRESS_0);
+  audioI2cAck = Wire.endTransmission();
+  Serial.printf("AUDIO ES8311 i2c=%u\n", (unsigned)audioI2cAck);
   audioCodec = es8311_create(0, ES8311_ADDRESS_0);
   if (!audioCodec) {
     audioFailed = true;
@@ -56,8 +60,9 @@ bool audioInit() {
 // Strength (0-255) and duration mirror the old vibration parameters.
 void soundFeedback(uint8_t strength = 150, uint16_t durationMs = 45) {
   if (screenDark || !audioInit()) return;
-  if (durationMs < 15) durationMs = 15;
-  if (durationMs > 250) durationMs = 250;
+  if (durationMs < 80) durationMs = 80;
+  if (durationMs > 400) durationMs = 400;
+  Serial.printf("AUDIO tone s=%u d=%u\n", (unsigned)strength, (unsigned)durationMs);
   const int freq = 520 + (int)strength * 4;   // 520..1540 Hz
   const int totalFrames = 16000 * (int)durationMs / 1000;
   digitalWrite(PA, HIGH);
@@ -69,12 +74,12 @@ void soundFeedback(uint8_t strength = 150, uint16_t durationMs = 45) {
       int frame = done + i;
       float env = min(1.0f, frame / 64.0f);
       env = min(env, (totalFrames - frame) / 64.0f);
-      int16_t v = (int16_t)(sinf(2.0f * PI * freq * frame / 16000.0f) * 2800.0f * env);
+      int16_t v = (int16_t)(sinf(2.0f * PI * freq * frame / 16000.0f) * 12000.0f * env);
       chunk[i * 2] = v;
       chunk[i * 2 + 1] = v;
     }
-    audioI2S.write((const uint8_t *)chunk, n * 4);
+    size_t written = audioI2S.write((const uint8_t *)chunk, n * 4);
+    if (done == 0) Serial.printf("AUDIO write=%u\n", (unsigned)written);
     done += n;
   }
-  digitalWrite(PA, LOW);
 }

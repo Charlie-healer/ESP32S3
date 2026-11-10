@@ -87,7 +87,7 @@ python3 ports/175c/sync_board.py
 - 伴侣模式 AvatarEngine，震动全部替换为 ES8311 声音反馈；
 - RTC 离线时钟：`#TIME` 基准存 RTC_NOINIT，重启后按 RTC 计数补时间；
 - PWR 短按熄屏/亮屏，长按仍由 AXP2101 硬件关机；
-- 熄屏或空闲等待页 CPU 降到 80MHz，触摸/BLE/翻页时回到 240MHz；
+- 亮屏固定 240MHz，熄屏降到 80MHz；
 - 可配置睡眠关机，电池供电且空闲时生效；
 - 默认亮度 50%（对齐 MotoNav-main 初始 128/255）。
 
@@ -114,6 +114,6 @@ python3 ports/175c/sync_board.py
 
 - 1.75C 使用 32MB Flash，但 Arduino Core 3.3.10 只有 16MB 分区布局，当前只用前 16MB；后 16MB 闲置。
 - `pin_config.h` 的 MCLK 已改为 GPIO16；当前未启用音频。
-- PWR/CPU 功能来自 MotoNav-main 的 1.75C 参考实现；CPU 已实测 80MHz，熄屏/亮屏重绘路径已自检，AXP2101 实体 PWR 短按待按键复测。
+- PWR/CPU 功能来自 MotoNav-main 的 1.75C 参考实现；亮屏 240MHz、熄屏 80MHz，熄屏/亮屏重绘路径已自检，AXP2101 实体 PWR 短按待按键复测。
 - 本工程不包含 Android/iOS 签名文件、高德 Key、和风 Key。
 - 上游代码为非商业使用许可，`AvatarEngine` 为 AGPL-3.0；公开分发需保留 `LICENSE.md`、`licenses/` 和来源说明。

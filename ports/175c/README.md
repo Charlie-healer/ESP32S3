@@ -87,7 +87,7 @@ python3 ports/175c/sync_board.py
 - 伴侣模式 AvatarEngine，震动全部替换为 ES8311 声音反馈；
 - RTC 离线时钟：`#TIME` 基准存 RTC_NOINIT，重启后按 RTC 计数补时间；
 - PWR 短按熄屏/亮屏，长按仍由 AXP2101 硬件关机；
-- 亮屏固定 240MHz、QSPI 80MHz、主循环 1ms，熄屏降到 80MHz；
+- 亮屏固定 240MHz、QSPI 80MHz、fast flush 16KB 分块、主循环 1ms，熄屏降到 80MHz；
 - 可配置睡眠关机，电池供电且空闲时生效；
 - 默认亮度 50%（对齐 MotoNav-main 初始 128/255）。
 

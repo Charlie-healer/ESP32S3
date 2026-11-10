@@ -9,7 +9,7 @@ volatile uint32_t flushMsAcc = 0, flushCnt = 0;
 
 // ---- v2.6 快速刷屏：自己往屏幕数据线上排队发送，两块缓冲轮流用（一块在传、一块在准备）----
 #include "../../QuarterTurnBlit.h"
-#define FAST_PIX 4096                     // 每段像素数（8KB）
+#define FAST_PIX 8192                     // 每段像素数（16KB）
 spi_device_handle_t fastDev = nullptr;
 uint8_t *fastBuf[2] = {nullptr, nullptr};
 

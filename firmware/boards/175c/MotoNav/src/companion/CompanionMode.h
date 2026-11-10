@@ -81,13 +81,11 @@ enum class CompanionRole : uint8_t {
   Count,
 };
 
-// Four-direction G sequence: left/right/up/down all within one second.
-static uint32_t gDirLeftAt = 0, gDirRightAt = 0, gDirUpAt = 0, gDirDownAt = 0;
+// Companion rapid-motion state. Dizzy requires sustained fast motion, not a
+// slow four-direction sequence.
+static uint32_t gRapidMotionMs = 0;
 static uint32_t gDizzyUntil = 0, gDizzyAt = 0;
 static bool gDizzyActive = false;
-static void resetGDirSequence() {
-  gDirLeftAt = gDirRightAt = gDirUpAt = gDirDownAt = 0;
-}
 
 class CompanionMode {
  public:
@@ -174,7 +172,7 @@ class CompanionMode {
     gestureCommitted = false;
     touchPressed = false;
     avatar.invalidate();
-    resetGDirSequence();
+    gRapidMotionMs = 0;
     gDizzyActive = false;
     gDizzyUntil = 0;
     gDizzyAt = 0;
@@ -346,8 +344,9 @@ class CompanionMode {
     const float screenAccelZ = accel.mps2.z / 9.80665f;
     const float screenGyroX = gyro.dps.y;
     const float screenGyroY = gyro.dps.x;
+    const float screenGyroZ = gyro.dps.z;
 
-    constexpr float kFilterAmount = 0.52f;
+    constexpr float kFilterAmount = 0.75f;
     if (imuCalibrationCount == 0) {
       filteredAccelX = screenAccelX;
       filteredAccelY = screenAccelY;
@@ -377,64 +376,32 @@ class CompanionMode {
       if (gDizzyActive) {
         if (static_cast<int32_t>(nowMs - gDizzyUntil) >= 0) {
           gDizzyActive = false;
-          resetGDirSequence();
+          gRapidMotionMs = 0;
           avatar.show(avatar.baseExpression(), nowMs, false, 260);
-          Serial.println("[Companion] G-spin dizzy finished");
+          Serial.println("[Companion] rapid-motion dizzy finished");
         } else {
           avatar.releaseTouch();
           return;
         }
       }
 
-      if (!touchPressed && nowMs - lastTouchReleaseAtMs > 220) {
+      if (!touchPressed && nowMs - lastTouchReleaseAtMs > 120) {
         // G follow now uses the same target as touch, with the direction
         // inverted to match this panel's physical orientation.
         avatar.setTouchTarget((int16_t)lroundf(CX + tx * 190.0f),
                               (int16_t)lroundf(CX + ty * 190.0f));
-
-        // Four-direction sequence: significant left, right, up and down
-        // excursions all inside one second trigger a 2 second dizzy state.
-        constexpr float kDirThreshold = 0.45f;
-        if (tx > kDirThreshold) gDirRightAt = nowMs;
-        if (tx < -kDirThreshold) gDirLeftAt = nowMs;
-        if (ty > kDirThreshold) gDirDownAt = nowMs;
-        if (ty < -kDirThreshold) gDirUpAt = nowMs;
-        if (gDirLeftAt && gDirRightAt && gDirUpAt && gDirDownAt) {
-          const uint32_t oldest = std::min(std::min(gDirLeftAt, gDirRightAt),
-                                           std::min(gDirUpAt, gDirDownAt));
-          if (nowMs - oldest <= 1000 && nowMs - gDizzyAt > 2500) {
-            gDizzyActive = true;
-            gDizzyUntil = nowMs + 2000;
-            gDizzyAt = nowMs;
-            resetGDirSequence();
-            avatar.play(ExpressionId::Dizzy, nowMs,
-                        AvatarEngine::PlaybackMode::Loop, false, 150);
-            startVibration(220, 120);
-            Serial.println("[Companion] G-spin four directions -> DIZZY 2s");
-            return;
-          }
-        }
       }
 
-      // Strong G still gives a short reaction when not doing the four-way spin.
+      // Strong tilt gets a short expression response. Dizzy is reserved for
+      // sustained rapid motion in the block below.
       static uint32_t lastGReactionMs = 0;
       const float tilt = fmaxf(fabsf(filteredAccelX - neutralAccelX),
                                fabsf(filteredAccelY - neutralAccelY));
-      const float gMag = sqrtf(filteredAccelX * filteredAccelX +
-                               filteredAccelY * filteredAccelY +
-                               screenAccelZ * screenAccelZ);
-      if (!shakeReactionActive && nowMs - lastGReactionMs > 650) {
-        if (gMag > 1.7f) {
-          lastGReactionMs = nowMs;
-          avatar.play(ExpressionId::Dizzy, nowMs, AvatarEngine::PlaybackMode::Once, false, 180);
-          startVibration(190, 80);
-          Serial.printf("[Companion] G reaction: DIZZY g=%.2f\n", gMag);
-        } else if (tilt > 0.28f) {
-          lastGReactionMs = nowMs;
-          avatar.show(ExpressionId::Surprised, nowMs, true, 180);
-          startVibration(140, 50);
-          Serial.printf("[Companion] G reaction: SURPRISED tilt=%.2f\n", tilt);
-        }
+      if (nowMs - lastGReactionMs > 650 && tilt > 0.30f) {
+        lastGReactionMs = nowMs;
+        avatar.show(ExpressionId::Surprised, nowMs, true, 180);
+        startVibration(140, 50);
+        Serial.printf("[Companion] G reaction: SURPRISED tilt=%.2f\n", tilt);
       }
     }
 
@@ -452,6 +419,30 @@ class CompanionMode {
     }
 
     if (imuCalibrationCount < kImuCalibrationSamples) return;
+
+    // Sustained fast motion, not a slow four-direction gesture, triggers dizzy.
+    // Thresholds are deliberately high so ordinary leaning does not pass.
+    const float gyroMag = sqrtf(screenGyroX * screenGyroX +
+                                screenGyroY * screenGyroY +
+                                screenGyroZ * screenGyroZ);
+    const bool fastMotion = (gyroMag > 220.0f) || (jerk > 0.75f);
+    if (fastMotion) {
+      gRapidMotionMs = std::min<uint32_t>(500, gRapidMotionMs + 20);
+    } else {
+      gRapidMotionMs = gRapidMotionMs > 20 ? gRapidMotionMs - 20 : 0;
+    }
+    if (!gDizzyActive && nowMs - gDizzyAt > 2500 && gRapidMotionMs >= 220) {
+      gDizzyActive = true;
+      gDizzyUntil = nowMs + 2000;
+      gDizzyAt = nowMs;
+      gRapidMotionMs = 0;
+      avatar.play(ExpressionId::Dizzy, nowMs,
+                  AvatarEngine::PlaybackMode::Loop, false, 150);
+      startVibration(220, 120);
+      Serial.printf("[Companion] rapid motion -> DIZZY 2s (gyro=%.0f jerk=%.2f)\n",
+                    gyroMag, jerk);
+      return;
+    }
 
     const float shakeIntensity = std::max(0.0f, std::min(1.0f, (shakeEnergy - 0.055f) / 0.48f));
     const float shakeDirectionX = std::max(-1.0f, std::min(1.0f, -deltaX / 0.28f));
@@ -486,14 +477,8 @@ class CompanionMode {
         }
       }
 
-      if (shakeSwingCount >= kRequiredShakeSwings) {
-        shakeReactionActive = true;
-        shakeQuietStartedMs = 0;
-        resetShakeSequence();
-        avatar.play(ExpressionId::Dizzy, nowMs, AvatarEngine::PlaybackMode::Loop, false, 150);
-        startVibration(190, 80);
-        Serial.printf("[Companion] Repeated horizontal shake -> DIZZY (energy=%.2f)\n", shakeEnergy);
-      }
+      // Dizzy is handled by the rapid-motion detector above; keep the
+      // shake target for the avatar's physical bounce only.
       return;
     }
 

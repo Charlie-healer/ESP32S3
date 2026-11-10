@@ -854,8 +854,11 @@ void AvatarEngine::updateInteraction(uint32_t nowMs) {
     return;
   }
 
+  // The avatar renders at ~13fps on the 466px panel. Capping the integration
+  // step at 33ms made touch/G springs run at less than half real speed; use
+  // the actual frame time (bounded for stability) instead.
   const float elapsedSeconds = std::min(
-      0.033f, std::max(0.001f, (nowMs - lastInteractionUpdateMs_) / 1000.0f));
+      0.070f, std::max(0.001f, (nowMs - lastInteractionUpdateMs_) / 1000.0f));
   lastInteractionUpdateMs_ = nowMs;
 
   const float targetX =

@@ -166,7 +166,15 @@ object NaviBridge {
         resetState()
         val epoch = arrivalSession.prepare()
         try {
-            runCatching { AMapNavi.occupyLocManager() }
+            // Soft-wait for the GPS manager: another app can hold it briefly
+            // when navigation starts right after a location client is released.
+            var occupied = false
+            for (attempt in 0 until 3) {
+                occupied = runCatching { AMapNavi.occupyLocManager(); true }.getOrDefault(false)
+                if (occupied) break
+                try { Thread.sleep(120) } catch (_: InterruptedException) { break }
+            }
+            if (!occupied) android.util.Log.w("MotoNavGPS", "occupyLocManager failed after retries")
             val n = AMapNavi.getInstance(c)
             listener?.let { old -> try { navi?.removeAMapNaviListener(old) } catch (_: Exception) {} }
             val l = makeNaviListener(epoch)
@@ -189,6 +197,7 @@ object NaviBridge {
         // stopNavi may synchronously emit onEndEmulatorNavi. Close before asking the SDK to stop.
         arrivalSession.cancel(epoch)
         try { navi?.stopNavi() } catch (_: Exception) {}
+        CrossFeeder.hideCross()                                                  // release the junction bitmap
         ShareGuide.stop()                                                        // v4.5
         handler.post { if (arrivalSession.isCurrent(epoch)) resetState() }
         finish("C", "已退出导航", epoch)
@@ -1014,7 +1023,14 @@ object NaviBridge {
             if (Refl.call(n, "addAimlessModeListener", l).first) aimlessListener = l
         } catch (_: Throwable) { }
         // 3 = 电子眼和特殊道路设施都播报
-        if (!Refl.call(n, "startAimlessMode", 3).first) return "这个版本的高德 SDK 不支持巡航模式"
+        if (!Refl.call(n, "startAimlessMode", 3).first) {
+            arrivalSession.cancel(arrivalSession.generation())
+            return "这个版本的高德 SDK 不支持巡航模式"
+        }
+        // attach() only prepared the session. Without begin() every
+        // onLocationChange callback is filtered out, so cruise would never send
+        // #p/#v or fetch map chunks and the round screen stayed on CRUISE.
+        beginNavigation(false)
         cruiseIdle.start(now())
         cruising = true
         RideRecorder.start("巡航","巡航")

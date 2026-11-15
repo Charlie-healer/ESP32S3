@@ -133,8 +133,17 @@ object CallWatcher {
                 main.post { navigateDestination(idx) }
             }
             "SET_THEME" -> {
-                val t = p.getOrNull(2)?.toIntOrNull() ?: 0
-                ctx?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)?.edit()?.putInt("map_theme", t)?.apply()
+                // The standby THEME row sends 0..3 = VICE / ORIG / BW / RADAR.
+                // Translate to the app's theme ids: VICE 1, ORIG 0, BW 5, RADAR 8.
+                // Theme 11 (DRAGON) is route-only and stays phone-picker only.
+                val raw = p.getOrNull(2)?.toIntOrNull() ?: 0
+                val t = when (raw) { 0 -> 1; 1 -> 0; 2 -> 5; 3 -> 8; 4 -> 11; else -> 1 }
+                main.post { MapFeeder.setTheme(t) }
+            }
+            "AC" -> when (p.getOrNull(2)) {                          // round-screen ADS-B page
+                "1" -> RadarFeeder.setActive(true, ctx)
+                "0" -> RadarFeeder.setActive(false)
+                "R" -> p.getOrNull(3)?.toIntOrNull()?.let { RadarFeeder.setRange(it) }
             }
         }
     }

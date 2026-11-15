@@ -60,3 +60,7 @@ ports/175c/dist/
 # 第三方参考代码（非商业许可 + AGPL 组件，避免误提交）
 MotoNav_stopwatch/
 MotoNav-main/
+
+# GitHub 参考仓库快照（约 3.2 GB，见 doc/github-refs/README.md）
+doc/github-refs/*
+!doc/github-refs/README.md

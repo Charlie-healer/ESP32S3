@@ -31,6 +31,33 @@ void touchInit() {
   if (touchOK) attachInterrupt(TP_INT, onTouchIrq, FALLING);   // v5.3
 }
 
+// CST9217 keeps scanning behind a dark panel. The panel and touch share
+// DCDC1, so the rail cannot be cut; the chip has to be told to sleep.
+// Deep-sleep command 0xD1 0x05 (Hynitron porting manual / SensorLib
+// CST92XX_REG_SLEEP_MODE). Wake is a hardware reset on TP_RESET, then the
+// driver is initialized again — an I2C wake command is not reliable while
+// the chip is asleep.
+bool touchAsleep = false;
+void touchPower(bool on) {
+  if (on) {
+    if (!touchAsleep) return;
+    pinMode(TP_RESET, OUTPUT);
+    digitalWrite(TP_RESET, LOW);
+    delay(10);
+    digitalWrite(TP_RESET, HIGH);
+    delay(60);
+    touchAsleep = false;
+    touchOK = touch.begin(Wire, 0x5A, IIC_SDA, IIC_SCL);
+    Serial.println(touchOK ? "touch wake ok" : "touch wake FAILED");
+    if (touchOK) attachInterrupt(TP_INT, onTouchIrq, FALLING);
+  } else {
+    if (touchAsleep || !touchOK) return;
+    touch.sleep();
+    touchAsleep = true;
+    Serial.println("touch asleep");
+  }
+}
+
 bool touchDown = false;
 int16_t touchX0 = 0, touchY0 = 0, touchX1 = 0, touchY1 = 0;
 void dragMove(int dx, int dy, unsigned long now);   // v5.5 跟手换页
@@ -39,6 +66,11 @@ void musicTap(int x, int y);
 void musicCoverAction(int dir);
 void musicCoverTap();
 void destScrollBy(int delta);
+// Toy overlay (src/toys/ToyMode.h, included after this file).
+bool toyIsOpen();
+void toyTouchPoll();
+bool toyButtonHit(int x, int y);
+void toyEnter();
 bool musicCoverTouch = false;
 bool destSwipeTouch = false;
 void dragEnd();
@@ -57,6 +89,7 @@ static void touchPointToCanvas(int &x, int &y) {
 
 void touchPoll() {
   if (screenDark) return;
+  if (toyIsOpen()) { toyTouchPoll(); return; }
   if (companionOpen) { companionTouchPoll(); return; }
   static unsigned long lastPoll = 0;
   unsigned long now = millis();
@@ -79,6 +112,22 @@ void touchPoll() {
       touchX0 = touchX1 = x[0]; touchY0 = touchY1 = y[0];
       pendingEvt = "T,P," + String(x[0]) + "," + String(y[0]);
       if (destSheetOpen) destSwipeTouch = true;
+      // Map double-tap-and-drag zoom: second press within 750 ms enters zoom
+      // mode; the drag distance then changes userMapScale.
+      if (page == 0 && (inNav || cruiseOn || mapModeActive()) && !callOn && !pairOn && !fxOn) {
+        float tdx = x[0] - CX, tdy = y[0] - CX;
+        if (lastMapTapAt && (unsigned long)(now - lastMapTapAt) <= 750 &&
+            tdx * tdx + tdy * tdy <= 225.0f * 225.0f) {
+          mapZoomActive = true;
+          touchEat = true;
+          mapZoomStartX = x[0];
+          mapZoomStartY = y[0];
+          mapZoomStartScale = userMapScale;
+          mapZoomHintUntil = now + 2500;
+          lastMapTapAt = 0;
+          dragAbort();
+        }
+      }
       if (page == 2 && !callOn && !pairOn) {
         int mx = touchX0, my = touchY0;
         touchPointToCanvas(mx, my);
@@ -90,11 +139,43 @@ void touchPoll() {
     }
     touchX1 = x[0]; touchY1 = y[0];
     touchLastSeen = now;
-    if (callOn || pairOn || touchEat || fxOn) dragAbort();
-    else if (!musicCoverTouch && !destSheetOpen && !settingsOpen && !leanOpen) dragMove(touchX1 - touchX0, touchY1 - touchY0, now);
+    if (mapZoomActive) {
+      touchEat = true;
+      float vx = touchX1 - mapZoomStartX;
+      float vy = touchY1 - mapZoomStartY;
+      touchVectorToCanvas(vx, vy);
+      userMapScale = constrain(mapZoomStartScale - vy / 75.0f, 0.30f, 3.00f);
+      mapZoomHintUntil = now + 2000;
+      navDirty = true;
+    }
+    if (callOn || pairOn || touchEat || fxOn || mapZoomActive) dragAbort();
+    else if (page == 0 && (inNav || cruiseOn || mapModeActive()) &&
+             lastMapTapAt && (unsigned long)(now - lastMapTapAt) <= 750) {
+      // First tap is inside the double-tap window; do not start a page swipe.
+    } else if (!musicCoverTouch && !destSheetOpen && !settingsOpen && !leanOpen) {
+      dragMove(touchX1 - touchX0, touchY1 - touchY0, now);
+    }
   } else if (touchDown && now - touchLastSeen > 80) {
     touchDown = false;
+    const unsigned long pressDuration = now - touchHoldAt;
     touchHoldAt = 0;
+    if (mapZoomActive) {
+      mapZoomActive = false;
+      touchEat = true;
+      mapZoomSaveAt = now + 1500;
+      mapZoomHintUntil = now + 1200;
+      navDirty = true;
+    } else if (page == 0 && (inNav || cruiseOn || mapModeActive()) &&
+               !callOn && !pairOn && !fxOn && !destSheetOpen && !settingsOpen && !leanOpen) {
+      float vx = touchX1 - touchX0, vy = touchY1 - touchY0;
+      touchVectorToCanvas(vx, vy);
+      if (pressDuration >= 15 && pressDuration < 550 &&
+          fabsf(vx) <= 85.0f && fabsf(vy) <= 85.0f) {
+        lastMapTapAt = now;
+        lastMapTapX = touchX0;
+        lastMapTapY = touchY0;
+      }
+    }
     if (callOn || pairOn || touchEat || fxOn) dragAbort();
     else if (destSheetOpen) {
       int tx = touchX0, ty = touchY0;
@@ -124,7 +205,8 @@ void touchPoll() {
         touchPointToCanvas(tx, ty);
         if (leanOpen) leanTap(tx, ty);
         else if (!settingsTap(tx, ty)) {
-          if (!leanTap(tx, ty)) destTap(tx, ty);
+          if (toyButtonHit(tx, ty)) toyEnter();
+          else if (!leanTap(tx, ty)) destTap(tx, ty);
         }
       }
       if (!destSheetOpen && !settingsOpen && !leanOpen) dragEnd();

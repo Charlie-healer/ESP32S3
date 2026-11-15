@@ -56,7 +56,7 @@ object MapFeeder {
     const val THEME_SAT = 10
     const val THEME_DRAGON = MapStylePolicy.DRAGON_RADAR
     fun routeOnly() = !MapStylePolicy.usesBasemap(theme)
-    val THEME_ORDER = listOf(1, 0, 5, THEME_DRAGON)   // 列表里的顺序
+    val THEME_ORDER = listOf(1, 0, 5, THEME_DRAGON, 2, 3, 4, 6, 7, 8, 9, THEME_SAT)   // 12 styles
     @Volatile var curve = false                                  // v5.9 弯道急缓上色
         private set
     private const val SAT_HALF = 700.0                           // v5.9 卫星图地图块半边长（米）
@@ -374,12 +374,31 @@ object MapFeeder {
     }
 
     fun themeName(t: Int = theme) = when (t) {
-        0 -> "原版"; 5 -> "极简黑白"; THEME_DRAGON -> "龙珠雷达"; else -> "罪恶都市"
+        0 -> "原版"
+        2 -> "GTA5"
+        3 -> "赛博霓虹"
+        4 -> "复古纸地图"
+        5 -> "极简黑白"
+        6 -> "蓝图"
+        7 -> "掌机像素"
+        8 -> "雷达"
+        9 -> "寻宝罗盘"
+        THEME_SAT -> "卫星图"
+        THEME_DRAGON -> "龙珠雷达"
+        else -> "罪恶都市"
     }
 
     fun themeDesc(t: Int = theme) = when (t) {
         0 -> "高德默认底图，保留原有颜色与地图标注"
+        2 -> "深色地面、浅色道路、紫色路线"
+        3 -> "黑底霓虹，赛博风格的高对比配色"
+        4 -> "米黄纸张与棕色道路；夜间自动换成霓虹"
         5 -> "独立黑白道路网；无建筑、绿地、水面和地图文字"
+        6 -> "深蓝蓝图网格，技术图纸风格"
+        7 -> "Game Boy 四色掌机像素风"
+        8 -> "雷达底色配扫描线和距离环"
+        9 -> "寻宝罗盘刻度与外圈方位"
+        THEME_SAT -> "高德卫星照片，压成 16 色发给圆屏"
         THEME_DRAGON -> "绿色十字网格，无底图，仅导航路线；四星球标记终点"
         else -> "暖沙色街区、青绿水面、粉紫路线，保持原有效果"
     }
@@ -433,6 +452,7 @@ object MapFeeder {
 
     /** 每次定位调用（主线程）：lat/lng 为高德坐标，bearing 为朝向（度，正北 = 0，顺时针） */
     fun onLocation(lat: Double, lng: Double, bearing: Float, kmh: Int) {
+        RadarFeeder.onLocation(lat, lng)
         var f = frame
         if (f == null) {
             // v2.3 坐标原点取所在区域（0.1 度网格）的固定点，编号也由它决定：App 重启后保持不变

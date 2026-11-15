@@ -4,6 +4,13 @@
 // 实现头文件只由此入口包含，保持原编译顺序和内联优化。
 #include "src/core/FirmwareConfig.h"
 #include <Arduino.h>
+
+// One-shot boot check for the CST9217 sleep/wake path; set to 1 to re-verify.
+#define TOUCH_SLEEP_SELFTEST 0
+// One-shot boot check that starts every toy and reports memory.
+#define TOY_BOOT_TEST 0
+// One-shot ES7210/I2S RX check: prints the captured sample count and peak.
+#define MIC_SELFTEST 0
 #include "src/core/DeviceContext.h"
 #include "src/audio/AudioFeedback.h"
 #include "src/core/FunctionDeclarations.h"
@@ -12,22 +19,26 @@
 #include "src/graphics/VectorDrawing.h"
 #include "src/graphics/ProgressRings.h"
 #include "src/power/Battery.h"
+#include "src/power/PmicConfig.h"
 #include "src/graphics/StatusWidgets.h"
 #include "src/graphics/LaneDrawing.h"
 #include "src/graphics/TextBitmaps.h"
 #include "src/protocol/TextBitmapReceiver.h"
+#include "src/map/MapZoom.h"
+#include "src/map/MapState.h"
 #include "src/pages/HomePage.h"
 #include "src/pages/PairingPage.h"
 #include "src/pages/ArrivalAnimation.h"
 #include "src/pages/IncomingCall.h"
+#include "src/toys/ToyMode.h"
 #include "src/pages/WeatherPage.h"
 #include "src/pages/PageNavigation.h"
-#include "src/map/MapState.h"
 #include "src/map/VectorMapReceiver.h"
 #include "src/map/RasterDecoder.h"
 #include "src/display/RowWorker.h"
 #include "src/map/RasterRenderer.h"
 #include "src/map/RouteRenderer.h"
+#include "src/map/PlaneRadar.h"
 #include "src/protocol/BulkReceiver.h"
 #include "src/power/BatteryPolling.h"
 #include "src/connectivity/Notifications.h"
@@ -51,8 +62,37 @@ void setup() {
                 (int)esp_sleep_get_wakeup_cause());
   Wire.begin(IIC_SDA, IIC_SCL);
   touchInit();                                         // v5.2 触摸屏
+#if TOUCH_SLEEP_SELFTEST
+  Serial.println("SELFTEST touch sleep/wake");
+  touchPower(false);
+  delay(150);
+  touchPower(true);
+#endif
   batInit();                                           // v6.8 电源芯片（电量）
+  pmicConfigure();                                     // 1.75C: unused rails off + charge defaults
+  leanInit();                                          // QMI8658 also feeds map heading fusion
   Serial.printf("AUDIO init=%d\n", audioInit() ? 1 : 0);  // 1.75C ES8311 音频反馈
+#if MIC_SELFTEST
+  {
+    audioI2S.end();
+    audioReady = false;
+    if (micBegin()) {
+      delay(200);
+      int16_t mbuf[160];
+      int total = 0, peak = 0;
+      for (int i = 0; i < 8; i++) {
+        int n = micReadMono(mbuf, 160, 60);
+        for (int k = 0; k < n; k++) { int a = abs(mbuf[k]); if (a > peak) peak = a; }
+        total += n;
+      }
+      Serial.printf("MIC test samples=%d peak=%d\n", total, peak);
+      micEnd();
+    } else {
+      Serial.println("MIC test begin failed");
+    }
+    audioInit();
+  }
+#endif
 
   // v2.3 读取保存的屏幕数据线速度（默认 40MHz，和官方示例一样）
   {
@@ -68,6 +108,7 @@ void setup() {
     pr.end();
     if (qspiMHz != 40 && qspiMHz != 60 && qspiMHz != 80) qspiMHz = 80;
   }
+  mapZoomLoad();                                       // user map zoom multiplier
   if (!gfx->begin(qspiMHz * 1000000)) Serial.println("gfx->begin() failed!");
   panel->setBrightness(128);
 
@@ -102,6 +143,10 @@ void setup() {
   drawWaiting(WAIT_NOLINK);
   flushSync();
   needFlush = false;
+
+#if TOY_BOOT_TEST
+  toyBootTest();
+#endif
 
 #if FPS_SELFTEST
   runFpsSelfTest();
@@ -186,6 +231,7 @@ void loop() {
   static unsigned long mediaDrawAt = 0;
   if (hidMusicMode && appleMedia.available && millis() - mediaDrawAt >= 1000) { mediaDrawAt = millis(); musicDirty = true; }
   saveRotIfDue();                                      // v6.4
+  mapZoomTick(millis());                               // debounced zoom NVS write
   // v6.5 连上 60 秒还没通过验证（不是自己的手机）：断开，让自己的手机能连
 #if defined(CONFIG_NIMBLE_ENABLED)
   if (bleConnected && !bleAuthed && bleConnHandle != 0xFFFF && millis() - bleConnAt > AUTH_TIMEOUT_MS) {
@@ -250,10 +296,22 @@ void loop() {
   batPoll();                                           // v6.8 电量
   pwrKeyPoll();                                        // PWR 短按：熄屏/亮屏
   cpuGovern();                                         // 熄屏/等待页 80MHz，活动回 240MHz
+  settingsAutoRotTick();                               // ROTATE GRAV: settings sheet follows gravity
   if (screenDark) {                                    // 熄屏期间只维持 BLE/接收/关机计时
     idlePowerCheck();
     delay(10);
     return;
+  }
+  // 玩具层：菜单/游戏/水波纹独占画面；来电和配对会让出，回到正常流程。
+  if (toyIsOpen()) {
+    if (pairReq || callOn) {
+      toyExit();
+    } else {
+      toyUpdate();
+      if (needFlush) { flushSync(); needFlush = false; }
+      delay(1);
+      return;
+    }
   }
   // 4. 需要时重画导航画面
   // v6.5 配对：整屏显示配对码，配好 / 失败 / 60 秒 / 断开后回到原来的画面
@@ -311,6 +369,13 @@ void loop() {
   if (inNav && navDirty && !fxOn && !callOn && !pairOn && page == 0 && !sliding) {
     drawNavFrame();
     navDirty = false;
+  }
+  if (page == 3 && !fxOn && !callOn && !pairOn && !pairReq && !sliding) {
+    static unsigned long compassAt = 0;
+    if (millis() - compassAt >= 100) {
+      compassAt = millis();
+      drawCompassPage();
+    }
   }
 
   // 5. 导航中长时间收不到任何消息 → 数据中断提示

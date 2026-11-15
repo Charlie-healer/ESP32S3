@@ -1,6 +1,7 @@
 #pragma once
 // 地图帧组合及帧率统计。由 MotoNav.ino 按依赖顺序包含，仅编译一次。
 // v5.8 分步计时（微秒累计，每 2 秒发一次）
+#include "../nav/HeadingFusion.h"
 #define PROF_N 11
 uint32_t profAcc[PROF_N];
 uint32_t profT = 0;
@@ -10,17 +11,28 @@ void drawMapFrame() {
   unsigned long t = millis();
   lastMapDraw = t;
   frameIsMap = true;
+  // QMI8658 yaw fusion: the phone course anchors the heading, the gyro fills
+  // the gap between fixes so a bend rotates at the rate it is actually ridden.
+  headingFusionPoll((uint32_t)t);
+  static int headingAnchorFrame = -1;
+  if (posFrame != headingAnchorFrame && posAt != 0 && (t - posAt) < 2500) {
+    headingAnchorFrame = posFrame;
+    headingFusion.anchor((float)posHdg, posKmh / 3.6f, true, (uint32_t)t);
+  }
   // 位置：按车速和转弯速度往前推算（v6.7 沿弧线，再加一点提前量），让画面连续移动、少“慢半拍”
   float cx, cy, hPred;
   predictPose(t, leadMs / 1000.0f, cx, cy, hPred);
-  viewTargetHdg = hPred;
+  float targetHdg = hPred;
+  if (headingFusion.fresh((uint32_t)t) && posAt != 0 && (t - posAt) < 2500)
+    targetHdg = headingFusion.heading();
+  viewTargetHdg = targetHdg;
   if (corrAt) {                                         // v2.6 平滑修正
     float f = fmaxf(0, 1 - (t - corrAt) / 400.0f);
     cx += corrX * f; cy += corrY * f;
   }
   // 朝向平滑转动，缩放跟车速（越快看得越远）
-  if (!viewInit) { viewHdg = hPred; viewInit = true; }
-  float dh = hPred - viewHdg;
+  if (!viewInit) { viewHdg = targetHdg; viewInit = true; }
+  float dh = targetHdg - viewHdg;
   while (dh > 180) dh -= 360;
   while (dh < -180) dh += 360;
   // v3.7 按时间平滑转动（和帧率无关）：时间常数 0.35 秒，最快每秒转 70 度。
@@ -39,9 +51,13 @@ void drawMapFrame() {
   bool vecOK = !dragon && mapValid && mapFrame == posFrame;
   bool rasOK = !dragon && rasterValid && rasterFrame == posFrame;
   bool useRaster = rasOK && (!vecOK || rasterAt >= vectorAt);   // v2.5 两种都有时用最新收到的
-  // 图片地图每像素 2 米，放太大会显得粗糙，所以最大放大倍数小一些
-  float targetS = constrain(0.85f - posKmh * 0.006f, 0.38f, useRaster ? 0.6f : 0.85f);
-  viewScale += (targetS - viewScale) * (1.0f - expf(-vdt / 1.2f));   // v3.7 缩放也按时间平滑
+  // User zoom multiplier on top of the speed-based zoom (double-tap drag).
+  // 0.30x..3.00x; while the finger is down the change is applied immediately.
+  const float baseS = 0.85f * userMapScale;
+  const float speedFactor = constrain(1.0f - (posKmh > 0 ? posKmh : 0) * (0.006f / 0.85f), 0.45f, 1.0f);
+  const float targetS = constrain(baseS * speedFactor, 0.15f, 3.00f);
+  if (mapZoomActive) viewScale = targetS;
+  else viewScale += (targetS - viewScale) * (1.0f - expf(-vdt / 0.8f));
   float sc = viewScale, hs = viewHdg * PI / 180, cs = cosf(hs), sn = sinf(hs);
   float viewR = (CX + (MAP_PY - CX) + 30) / sc;
 
@@ -138,6 +154,11 @@ void drawMapFrame() {
   hasCam = saveCam; tripOn = saveTrip;
   drawNavHints(300);                                    // v5.0 重新规划中 / 更快路线 / GPS 信号弱
   drawBattery(CX - 16, 18, true);                         // v6.8 电量（车速上方）；v7.2 带黑底
+  if (mapZoomActive || (int32_t)(millis() - mapZoomHintUntil) < 0) {
+    char zb[16];
+    snprintf(zb, sizeof(zb), "ZOOM %.1fX", userMapScale);
+    printCentered(zb, CX, 58, 1, mapZoomActive ? C_GREEN : C_GREY);
+  }
   profMark(10);
   // v2.9 小地图里不画顶部的蓝牙小圆点（会和 N 标记重叠；能收到地图就说明连着）
   needFlush = true;

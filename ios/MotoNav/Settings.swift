@@ -8,7 +8,7 @@ final class Settings: ObservableObject {
     private let ud = UserDefaults.standard
 
     /// 风格编号（和固件一样）；列表顺序
-    static let themeOrder = [1, 0, 5, 11]
+    static let themeOrder = [1, 0, 5, 11, 2, 3, 4, 6, 7, 8, 9, 10]
     static func themeName(_ t: Int) -> String {
         switch t {
         case 11: return "龙珠雷达"
@@ -51,7 +51,7 @@ final class Settings: ObservableObject {
     @Published var theme: Int {
         didSet {
             ud.set(theme, forKey: "map_theme")
-            BleLink.shared.send("#t,\(theme)")
+            BleLink.shared.send("#t,\(theme),1")
             // 卫星图和普通地图的数据不一样：切换时重新下载
             if oldValue != theme { MapFeeder.shared.resetChunk() }
         }
@@ -160,7 +160,8 @@ final class Settings: ObservableObject {
 
     private init() {
         amapKey = ud.string(forKey: "key_amap") ?? ""
-        theme = [1, 0, 5, 11].contains(ud.integer(forKey: "map_theme")) && ud.object(forKey: "map_theme") != nil ? ud.integer(forKey: "map_theme") : 1
+        let savedTheme = ud.integer(forKey: "map_theme")
+        theme = (0...11).contains(savedTheme) && ud.object(forKey: "map_theme") != nil ? savedTheme : 1
         rotationDeg = ud.object(forKey: "screen_rot_deg") as? Int
             ?? ((ud.object(forKey: "screen_rot") as? Int ?? 0) & 3) * 90   // 老版本只存了 0~3 档
         brightness = ud.object(forKey: "bright") as? Double ?? 200
@@ -200,7 +201,7 @@ final class Settings: ObservableObject {
         MusicBridge.shared.syncMode()
         MusicBridge.shared.refresh(force: true)
         applyDayNight(force: true)                      // 亮度、夜间配色
-        b.send("#t,\(theme)")
+        b.send("#t,\(theme),1")
         b.send(rotationMsg)
         b.send(curve ? "#Q,1" : "#Q,0")
         b.send(mapOn ? "#m,1" : "#m,0")

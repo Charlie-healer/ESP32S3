@@ -7,18 +7,8 @@
 #include "FullStandbyUi.h"
 
 #define FULL_STAR_Y 316
-
-struct FullPalette {
-  uint16_t block, road, park, water, route, node, trail, blip;
-};
-
-// Settings THEME order: VICE, ORIG, BW, RADAR.
-static const FullPalette FULL_PALETTES[4] = {
-  {0xE6D9, 0x3187, 0x760D, 0x4E3B, 0xF258, 0x78EC, 0xA4B4, 0xF258},
-  {0xDEFB, 0x3186, 0x5DEB, 0x4C9B, 0x249F, 0xFFFF, 0x94B3, 0xFE80},
-  {0x0000, 0x8410, 0x0000, 0x0000, 0xFFFF, 0x39E7, 0x528A, 0xFFFF},
-  {0x00C1, 0x0B46, 0x0183, 0x0084, 0x57F0, 0x01C2, 0x1AC6, 0xCFF9},
-};
+// The standby background follows the map style chosen on the phone (all 12
+// themes, day/night). Palette data lives in src/map/MapState.h.
 
 static int64_t fullDrawnMinute = -2;
 
@@ -51,15 +41,16 @@ static void drawFullBackground() {
   if (!fb) return;
   const int W = LCD_WIDTH;
   const int H = LCD_HEIGHT;
-  const int tid = settingsThemeIdx & 3;
-  const FullPalette &th = FULL_PALETTES[tid];
+  const int tid = styleIdx();
+  const MapTheme &th = nightOn ? THEMES_NIGHT[tid] : THEMES[tid];
 
   gfx->fillScreen(th.block);
 
-  if (tid == 3) {  // RADAR
-    gfx->drawCircle(CX, CX, 75, 0x0B80);
-    gfx->drawCircle(CX, CX, 150, 0x0B80);
-    gfx->drawCircle(CX, CX, 210, 0x0B80);
+  if (tid == ST_DRAGON) DragonRadar::drawGrid(gfx, W, H, nightOn);
+  if (tid == ST_RADAR) {  // RADAR
+    gfx->drawCircle(CX, CX, 75, th.road);
+    gfx->drawCircle(CX, CX, 150, th.road);
+    gfx->drawCircle(CX, CX, 210, th.road);
   }
 
   if (th.water != 0 && th.water != th.block) {
@@ -83,12 +74,12 @@ static void drawFullBackground() {
     for (int y = 42; y < H; y += 48) gfx->fillRect(0, y - 2, W, 4, th.road);
   }
 
-  gfx->fillRect(CX - 1, 280, 3, 140, th.trail);
+  gfx->fillRect(CX - 1, 280, 3, 140, th.done);
 
   if (th.route != 0) {
     gfx->fillRect(CX - 3, 186, 6, 94, th.route);
     gfx->fillRect(CX - 3, 183, 148, 6, th.route);
-    aaDisc((float)CX, 186.0f, 6.0f, th.node);
+    aaDisc((float)CX, 186.0f, 6.0f, th.route2);
     aaDisc((float)CX, 186.0f, 3.0f, th.route);
   }
 
@@ -187,6 +178,7 @@ void drawWaitingFull(int st) {
   if (!inNav) {
     drawSettingsGear();
     drawLeanButton();
+    toyButtonDraw();
   }
   drawPageDots();
 
@@ -213,6 +205,14 @@ void fullHomeTick() {
   }
 
   int64_t minute = homeClock.minuteKey(millis());
+  static int lastTheme = -1;
+  static bool lastNight = false;
+  if (styleIdx() != lastTheme || nightOn != lastNight) {
+    lastTheme = styleIdx();
+    lastNight = nightOn;
+    drawWaitingFull(waitSt);
+    return;
+  }
   if (minute == fullDrawnMinute) return;
   drawWaitingFull(waitSt);
 }

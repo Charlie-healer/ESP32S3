@@ -19,6 +19,7 @@
 int destStarY = 408;              // 408 = rider home, 316 = full standby
 void drawWaiting(int st);
 void drawWaitingRider(int st);
+void drawCompassPage();            // defined in PageNavigation.h
 extern bool settingsOpen;
 extern bool leanOpen;
 void drawDestStar();
@@ -27,6 +28,7 @@ void destTap(int x, int y);
 void drawSettingsGear();
 void drawSettingsSheet();
 bool settingsTap(int x, int y);
+void toyButtonDraw();               // defined in src/toys/ToyMode.h (included after HomePage)
 void drawLeanButton();
 void drawLeanSheet();
 bool leanTap(int x, int y);
@@ -137,9 +139,9 @@ unsigned long pageAt = 0;
 // 页面顺序对应滑动位置：音乐在左，主页居中，天气在右；导航主页不显示。
 void drawPageDots() {
   if (page == 0 && inNav) return;
-  const int pageOrder[] = {2, 0, 1};
-  for (int i = 0; i < 3; i++) {
-    aaDisc(CX + (i - 1) * 20, 444, 4, page == pageOrder[i] ? C_WHITE : 0x4208);
+  const int pageOrder[] = {2, 0, 1, 3};
+  for (int i = 0; i < 4; i++) {
+    aaDisc(CX + (i * 2 - 3) * 8, 444, 4, page == pageOrder[i] ? C_WHITE : 0x4208);
   }
   if (page == 1) for (int i = 0; i < 3; i++) {
     aaDisc(438, CX + (i - 1) * 18, 3,
@@ -190,7 +192,7 @@ void drawWaitingRider(int st) {
   drawStatus();
   drawPageDots();
   destStarY = 408;
-  if (!inNav) { drawDestStar(); drawSettingsGear(); drawLeanButton(); }
+  if (!inNav) { drawDestStar(); drawSettingsGear(); drawLeanButton(); toyButtonDraw(); }
   if (destSheetOpen) drawDestSheet();
   if (settingsOpen) drawSettingsSheet();
   if (leanOpen) drawLeanSheet();
@@ -206,6 +208,7 @@ void drawWaitingRider(int st) {
 void drawWaiting(int st) {
   if (screenDark) return;
   if (companionOpen) { companionRedraw(); return; }
+  if (page == 3) { drawCompassPage(); return; }
   settingsLoad();
   if (homeStyle == HOME_FULL) drawWaitingFull(st);
   else drawWaitingRider(st);

@@ -64,10 +64,16 @@ void leanRead() {
   float az = accel.mps2.z / 9.80665f;
   gyroX = gyro.dps.x; gyroY = gyro.dps.y; gyroZ = gyro.dps.z;
   // 1.75C panel axes: sensor Y is horizontal (left/right), sensor X is
-  // vertical (fore/aft). Swap them for the UI so roll and pitch are sane.
-  leanLateral = ay;
-  leanLongitudinal = -ax;
-  leanRaw = atan2f(ay, az) * 180.0f / PI;
+  // vertical (fore/aft). Rotate that pair into the canvas frame by the same
+  // screen angle the display is flushed with, so Lean/G stay correct at
+  // 0/90/180/270 and arbitrary rotation angles.
+  const float rawRight = ay;
+  const float rawFwd = -ax;
+  const float right = rawRight * rotCosF + rawFwd * rotSinF;
+  const float fwd = -rawRight * rotSinF + rawFwd * rotCosF;
+  leanLateral = right;
+  leanLongitudinal = fwd;
+  leanRaw = atan2f(right, az) * 180.0f / PI;
   leanAngle = leanRaw - leanZero;
   leanG = sqrtf(ax * ax + ay * ay + az * az);
   if (leanG > leanMaxG) leanMaxG = leanG;
@@ -240,4 +246,33 @@ bool leanTap(int x, int y) {
     return true;
   }
   return false;
+}
+
+// Gravity-follow rotation for the settings sheet. Entered from the ROTATE row
+// (0 / 90 / 180 / 270 / GRAV). Updates at ~10 Hz; the angle is not persisted,
+// so a reboot falls back to the last manually saved rotation.
+void settingsAutoRotTick() {
+  if (!settingsOpen || !screenAutoRot || screenDark || !imuOK) return;
+  const uint32_t now = millis();
+  if (now - autoRotAt < 100) return;
+  autoRotAt = now;
+  AccelerometerData a;
+  if (!imu.readAccel(a)) return;
+  const float right = a.mps2.y;
+  const float up = -a.mps2.x;
+  const float mag = sqrtf(right * right + up * up);
+  if (mag < 1.5f) return;                 // lying flat: keep the current angle
+  float deg = atan2f(right, up) * 180.0f / PI;
+  if (deg < 0.0f) deg += 360.0f;
+  float diff = deg - autoRotAngle;
+  while (diff > 180.0f) diff -= 360.0f;
+  while (diff < -180.0f) diff += 360.0f;
+  autoRotAngle += diff * 0.25f;
+  if (autoRotAngle < 0.0f) autoRotAngle += 360.0f;
+  if (autoRotAngle >= 360.0f) autoRotAngle -= 360.0f;
+  const int d = (int)lroundf(autoRotAngle);
+  if (d != screenDeg) {
+    setScreenDeg(d, false);
+    drawSettingsSheet();
+  }
 }

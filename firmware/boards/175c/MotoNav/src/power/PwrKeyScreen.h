@@ -35,12 +35,14 @@ void pwrKeyBusLocked(bool dark) {
   if (dark) {
     panel->setBrightness(0);
     panel->displayOff();
+    touchPower(false);                  // CST9217 deep sleep behind a dark panel
     screenDark = true;
     Serial.println("PWR screen off");
   } else {
     cpuBoost();
     panel->displayOn();
     panel->setBrightness(screenBright);
+    touchPower(true);                   // reset + re-init before any touch is read
     screenDark = false;
     Serial.println("PWR screen on");
     // Restore whichever screen was active when the panel was switched off.
@@ -54,6 +56,8 @@ void pwrKeyBusLocked(bool dark) {
       wxDirty = true;
     } else if (inNav) {
       navDirty = true;
+    } else if (toyIsOpen()) {
+      // The toy overlay redraws itself on the next loop iteration.
     } else {
       drawWaiting((bleConnected && bleAuthed) ? WAIT_READY : WAIT_NOLINK);
     }

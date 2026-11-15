@@ -92,7 +92,11 @@ object MusicBridge {
                 ?: meta.getBitmap(MediaMetadata.METADATA_KEY_ART)
         } catch (_: Throwable) { null }
         if (memBmp != null && !memBmp.isRecycled) {
-            CoverFeeder.feedCover(memBmp, "$tKey#${memBmp.generationId}", force)
+            // Metadata is refreshed every 1.5 s and getBitmap() returns a new
+            // Bitmap object each time, so generationId changes even for the same
+            // artwork. Using it as the key re-sent a 6.8 KB cover bulk every
+            // 1.5 s and starved the large map raster channel.
+            CoverFeeder.feedCover(memBmp, "$tKey#mem", force)
             return
         }
         val uriStr = meta.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)

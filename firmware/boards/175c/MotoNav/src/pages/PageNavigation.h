@@ -95,6 +95,67 @@ static void drawTextImgAt(int slot, int x0, int y0, uint8_t tint) {
   }
 }
 
+// Optional minimal music layout (from pr/music-player-redesign): title,
+// track text images, three buttons and the duration; no cover background,
+// lyrics, volume rail or like button.
+void drawMusicMinimal() {
+  gfx->fillScreen(C_BLACK);
+  onWaitScreen = false;
+  frameIsMap = false;
+  printCentered("MUSIC", CX, 65, 4, C_CYAN);
+  bool linked = bleConnected && bleAuthed;
+  if (hidMusicMode && linked && !appleMedia.available) {
+    printCentered("PHONE MEDIA KEYS", CX, 158, 2, C_WHITE);
+    printCentered("OPEN MUSIC APP ON PHONE", CX, 210, 2, C_GREY);
+  } else if (linked) {
+    drawTextImg(5, 158, 0xFF);
+    drawTextImg(6, 210, 0xBB);
+  } else printCentered("PHONE OFFLINE", CX, 170, 3, C_GREY);
+  bool showLyrics = linked && hidMusicMode && musicLyrics && appleMedia.available && imgs[12].showW > 0;
+  if (showLyrics) drawTextImg(12, 242, 0xDD);
+  const char *feedback[] = {"", "SENT", "PHONE RECEIVED", "DONE", "NO RESPONSE", "NO PLAYER", "HID SENT", "HID NOT READY", "HID SEND FAILED", "AMS SENT", "AMS SEND FAILED", "AMS QUEUED"};
+  String state = linked && musicHave ? (musicPlaying ? "PLAYING" : "PAUSED") : "NO PLAYER";
+  if (hidMusicMode) {
+    state = !hidMediaReady() ? (appleMedia.controlMask() ? "AMS MEDIA READY" : "PAIR HID IN PHONE SETTINGS")
+          : !appleMedia.available ? "HID READY / AMS UNAVAILABLE"
+          : !appleMedia.playback.known ? "STATE UNKNOWN"
+          : appleMedia.playback.state == 1 ? "PLAYING"
+          : appleMedia.playback.state == 0 ? "PAUSED" : "SEEKING";
+  }
+  if (musicAck > 0 && musicAck <= 11) state = feedback[musicAck];
+  printCentered(state, CX, showLyrics ? 272 : 257, 2, musicAck == 4 ? C_ORANGE : C_GREY);
+  for (int i = 0; i < 3; i++) {
+    int x = CX + (i - 1) * 100, y = 355;
+    bool enabled = hidMusicMode ? (hidMediaReady() || appleMedia.controlReady(i)) : linked && musicHave;
+    uint16_t c = enabled ? C_WHITE : C_GREY;
+    aaDisc(x, y, 40, enabled && musicPressed == i ? 0x0470 : enabled ? 0x19A7 : 0x1082);
+    if (i == 1) {
+      if (hidMusicMode && !appleMedia.playback.known) {
+        gfx->fillTriangle(x - 18, y - 14, x - 18, y + 14, x + 2, y, c);
+        gfx->fillRect(x + 7, y - 14, 5, 28, c); gfx->fillRect(x + 15, y - 14, 5, 28, c);
+      } else if (musicPlaying) {
+        gfx->fillRect(x - 12, y - 14, 8, 28, c);
+        gfx->fillRect(x + 4, y - 14, 8, 28, c);
+      } else gfx->fillTriangle(x - 9, y - 16, x - 9, y + 16, x + 16, y, c);
+    } else {
+      int sign = i == 0 ? -1 : 1;
+      gfx->fillTriangle(x - sign * 11, y - 14, x - sign * 11, y + 14, x + sign * 9, y, c);
+      gfx->fillRect(x + sign * 14 - 3, y - 14, 6, 28, c);
+    }
+  }
+  if (hidMusicMode && appleMedia.available) {
+    double duration = AppleMediaData::duration(appleMedia.values[3].text.c_str());
+    if (duration > 0 && appleMedia.playback.known) {
+      double elapsed = appleMedia.playback.elapsed + appleMedia.playback.rate * (millis() - appleMedia.playbackAt) / 1000.0;
+      int sec = (int)constrain(elapsed, 0.0, duration), total = (int)duration;
+      char time[32]; snprintf(time, sizeof(time), "%d:%02d / %d:%02d", sec / 60, sec % 60, total / 60, total % 60);
+      printCentered(time, CX, 402, 2, C_GREY);
+    }
+  } else printCentered("SWIPE LEFT TO RETURN", CX, 402, 2, C_GREY);
+  drawPageDots();
+  needFlush = true;
+}
+
 void drawMusic() {
   if (coverValid && coverBuf) drawCoverBackgroundDimmed(); else gfx->fillScreen(C_BLACK);
   onWaitScreen = false;
@@ -188,6 +249,57 @@ static inline uint16_t dim565(uint16_t c, uint32_t k) {   // k: 0~32，32 = 原�
   return (uint16_t)(((r * k >> 5) << 11) | ((g * k >> 5) << 5) | (b * k >> 5));
 }
 
+// Standalone compass page (moto-gps style): fixed dial, phone heading,
+// cardinal and speed. Page 3, to the right of the weather page.
+void drawCompassPage() {
+  onWaitScreen = false;
+  frameIsMap = false;
+  gfx->fillScreen(C_BLACK);
+  printCentered("COMPASS", CX, 24, 3, C_WHITE);
+  const bool have = posAt != 0 && (millis() - posAt < 5000);
+  const int hdg = have ? (((int)lroundf(posHdg) % 360) + 360) % 360 : 0;
+  const int cy = 253;
+  gfx->drawCircle(CX, cy, 180, 0x4208);
+  gfx->drawCircle(CX, cy, 178, 0x2945);
+  for (int i = 0; i < 24; i++) {
+    float a = i * 15.0f * PI / 180.0f;
+    int r0 = 168, r1 = (i % 6 == 0) ? 148 : 160;
+    gfx->drawLine(CX + sinf(a) * r0, cy - cosf(a) * r0,
+                  CX + sinf(a) * r1, cy - cosf(a) * r1,
+                  (i % 6 == 0) ? C_WHITE : 0x6B4D);
+  }
+  printCentered("N", CX, cy - 178, 2, C_RED);
+  printCentered("S", CX, cy + 168, 2, C_GREY);
+  printCentered("E", CX + 168, cy - 8, 2, C_GREY);
+  printCentered("W", CX - 168, cy - 8, 2, C_GREY);
+
+  if (have) {
+    float a = hdg * PI / 180.0f;
+    float ux = sinf(a), uy = -cosf(a);
+    float px = -uy, py = ux;
+    gfx->fillTriangle(CX + ux * 145, cy + uy * 145,
+                      CX + px * 11, cy + py * 11,
+                      CX - px * 11, cy - py * 11, C_RED);
+    gfx->fillTriangle(CX - ux * 55, cy - uy * 55,
+                      CX + px * 8, cy + py * 8,
+                      CX - px * 8, cy - py * 8, C_WHITE);
+    gfx->fillCircle(CX, cy, 9, C_WHITE);
+    gfx->fillCircle(CX, cy, 4, C_BLACK);
+    static const char *const CARD[8] = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
+    char buf[24];
+    snprintf(buf, sizeof(buf), "%03d", hdg);
+    printCentered(buf, CX, 196, 4, C_WHITE);
+    printCentered(CARD[((hdg + 22) / 45) & 7], CX, 234, 2, C_CYAN);
+    snprintf(buf, sizeof(buf), "%d KM/H", (int)lroundf(posKmh));
+    printCentered(buf, CX, 268, 2, C_GREY);
+  } else {
+    printCentered("NO HEADING", CX, cy - 10, 3, C_GREY);
+    printCentered("START NAV OR CRUISE", CX, cy + 24, 1, 0x6B4D);
+  }
+  drawPageDots();
+  needFlush = true;
+}
+
 // 画一个页面到画布（不改当前页）
 void renderPage(int p, int detail) {
   int keep = page;
@@ -196,6 +308,7 @@ void renderPage(int p, int detail) {
   page = p; sliding = false;
   if (p == 2) drawMusic();
   else if (p == 1) { wxDetail = detail; drawWeather(); }
+  else if (p == 3) drawCompassPage();
   else if (inNav) drawNavFrame();
   else drawWaiting(bleConnected ? WAIT_READY : WAIT_NOLINK);
   page = keep; wxDetail = keepDetail; sliding = ks;
@@ -308,6 +421,8 @@ void slideCommit() {
     onWaitScreen = false;
     wxDirty = false;
     if (!wxHave || millis() - wxAt > 15UL * 60 * 1000) { pendingEvt = "T,W"; wxAskAt = millis(); }
+  } else if (page == 3) {
+    onWaitScreen = false;
   } else {
     if (inNav) navDirty = true;
     else { riderPrevF = -1; riderPrevZ = -2; catForce = true; }
@@ -320,6 +435,7 @@ void slideCancel() {
   renderPage(page, wxDetail);
   if (page == 2) musicDirty = true;
   else if (page == 1) wxDirty = false;
+  else if (page == 3) onWaitScreen = false;
   else if (inNav) navDirty = true;
   else { onWaitScreen = true; catForce = true; }
   needFlush = true;

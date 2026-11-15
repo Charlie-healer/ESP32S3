@@ -8,7 +8,7 @@ void handleBulk(const uint8_t *d, int n) {
   int parts = d[3] | (d[4] << 8), seq = d[5] | (d[6] << 8);
   uint32_t total = (uint32_t)rd32(d + 7), off = (uint32_t)rd32(d + 11);
   if (type == 6) { handleCoverBulk(d, n); return; }
-  if (type < 1 || type > 4) return;
+  if (type < 1 || type > 5) return;
   Bulk &b = bulks[type];
   if (!b.buf || total == 0 || total > b.cap || parts == 0 || parts > 4096 || seq >= parts) return;
   if (id != b.id || total != b.total || parts != b.parts) {     // 新的一份：从头开始收
@@ -33,6 +33,12 @@ void handleBulk(const uint8_t *d, int n) {
       parseRoute(b.buf, total);
     } else if (type == 4) {
       parseGhost(b.buf, total);                        // v4.4 原路线
+    } else if (type == 5) {
+      if (!parsePlanes(b.buf, total)) {                // ADS-B frame from the phone
+        b.done = false; b.got = 0; memset(b.mask, 0, sizeof(b.mask));
+        pendingAck = "N," + String(type) + "," + String(id);
+        return;
+      }
     } else {
       if (!parseRaster(b.buf,total)) {
         // 没有成功解码就不回“已确认”，通知手机回退全量重发。

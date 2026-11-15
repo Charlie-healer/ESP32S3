@@ -13,6 +13,7 @@ static bool audioReady = false;
 static bool audioFailed = false;
 static uint8_t audioI2cAck = 255;
 int soundVolume = 80;
+extern bool recActive;          // set by Recorder.h; speaker must stay silent while the mic owns I2S
 
 void audioSetVolume(int volume);
 
@@ -70,6 +71,7 @@ void audioSetVolume(int volume) {
 
 // Strength (0-255) and duration mirror the old vibration parameters.
 void soundFeedback(uint8_t strength = 150, uint16_t durationMs = 45) {
+  if (recActive) return;
   if (screenDark || !audioInit()) return;
   if (durationMs < 80) durationMs = 80;
   if (durationMs > 400) durationMs = 400;

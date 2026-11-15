@@ -41,6 +41,13 @@ struct MotoNavApp: App {
                 switch p[1] {
                 case "W": Weather.shared.request()                    // 滑到了天气页
                 case "A": break                                       // 按住接电话：iOS 不允许 App 接电话
+                case "AC":
+                    switch p.count > 2 ? p[2] : "" {
+                    case "1": RadarFeeder.shared.setActive(true)      // 圆屏打开了 RADAR
+                    case "0": RadarFeeder.shared.setActive(false)
+                    case "R": if p.count > 3, let m = Int(p[3]) { RadarFeeder.shared.setRange(m) }
+                    default: break
+                    }
                 default: break
                 }
             }

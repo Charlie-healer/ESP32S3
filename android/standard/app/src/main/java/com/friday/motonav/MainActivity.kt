@@ -5,8 +5,13 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
@@ -944,7 +949,8 @@ class MainActivity : AppCompatActivity() {
 
     // ---------------- v6.0 风格选择：全屏卡片 + 预览图 ----------------
 
-    /** 预览图放在 res/drawable-nodpi/theme_编号.png；找不到就画一个纯色圆代替 */
+    /** Preview: the four original styles use packaged art; the other eight are
+     *  drawn from the same RGB565 palettes as THEMES[] in the firmware. */
     private fun setThemeImage(iv: ImageView, t: Int) {
         val id = when (t) {
             0 -> R.drawable.theme_0
@@ -957,7 +963,79 @@ class MainActivity : AppCompatActivity() {
             }
         }
         if (id != 0) iv.setImageResource(id)
-        else iv.setImageDrawable(GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(STROKE) })
+        else iv.setImageDrawable(themePreview(t))
+    }
+
+    // block, road, park, water, route — same order as MapTheme in MapState.h.
+    private val THEME_PALETTE = arrayOf(
+        intArrayOf(0xDEFB, 0x3186, 0x5DEB, 0x4C9B, 0x249F), // 0 原版
+        intArrayOf(0xE6D9, 0x3187, 0x760D, 0x4E3B, 0xF258), // 1 罪恶都市
+        intArrayOf(0x3A08, 0x9D15, 0x4327, 0x2A8F, 0xA2DF), // 2 GTA5
+        intArrayOf(0x0021, 0x04B6, 0x0103, 0x1847, 0xF815), // 3 赛博霓虹
+        intArrayOf(0xEF18, 0xF5CD, 0xC6B3, 0x9E3A, 0xB0A3), // 4 复古纸
+        intArrayOf(0x0000, 0x8410, 0x0000, 0x0000, 0xFFFF), // 5 极简黑白
+        intArrayOf(0x094B, 0xDF5F, 0x1A50, 0x2B35, 0xFE87), // 6 蓝图
+        intArrayOf(0x8E0E, 0xE7DA, 0x334A, 0x08C4, 0x08C4), // 7 掌机像素
+        intArrayOf(0x00C1, 0x0B46, 0x0183, 0x0084, 0x57F0), // 8 雷达
+        intArrayOf(0x0863, 0x29AA, 0x08C4, 0x08A6, 0xFD80), // 9 寻宝罗盘
+        intArrayOf(0x5B08, 0x8C50, 0x3285, 0x29E8, 0x073F), // 10 卫星
+        intArrayOf(0x0000, 0x0000, 0x0000, 0x0000, 0xFFF0), // 11 龙珠雷达
+    )
+
+    private fun rgb565(c: Int): Int {
+        val r = (c shr 11) and 0x1F
+        val g = (c shr 5) and 0x3F
+        val b = c and 0x1F
+        return Color.rgb((r * 255 + 15) / 31, (g * 255 + 31) / 63, (b * 255 + 15) / 31)
+    }
+
+    private fun themePreview(t: Int): BitmapDrawable {
+        val size = 220
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        val pal = THEME_PALETTE[t.coerceIn(0, THEME_PALETTE.size - 1)]
+        val bg = rgb565(pal[0])
+        val road = rgb565(pal[1])
+        val park = rgb565(pal[2])
+        val water = rgb565(pal[3])
+        val route = rgb565(pal[4])
+
+        p.style = Paint.Style.FILL
+        p.color = bg
+        c.drawCircle(110f, 110f, 106f, p)
+        p.color = water
+        c.drawCircle(58f, 172f, 52f, p)
+        p.color = park
+        c.drawRect(132f, 28f, 204f, 92f, p)
+
+        p.style = Paint.Style.STROKE
+        p.strokeCap = Paint.Cap.ROUND
+        p.color = road
+        p.strokeWidth = 7f
+        c.drawLine(6f, 110f, 214f, 110f, p)
+        c.drawLine(110f, 6f, 110f, 214f, p)
+        c.drawLine(18f, 28f, 202f, 192f, p)
+
+        p.color = route
+        p.strokeWidth = 10f
+        c.drawPath(Path().apply {
+            moveTo(34f, 188f); lineTo(82f, 140f); lineTo(110f, 112f); lineTo(110f, 18f)
+        }, p)
+
+        // Clip the roads/route to the round panel.
+        val mask = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val mc = Canvas(mask)
+        val mp = Paint(Paint.ANTI_ALIAS_FLAG)
+        mp.color = Color.BLACK
+        mc.drawCircle(110f, 110f, 106f, mp)
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val oc = Canvas(out)
+        oc.drawBitmap(bmp, 0f, 0f, null)
+        oc.drawBitmap(mask, 0f, 0f, Paint().apply {
+            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+        })
+        return BitmapDrawable(resources, out)
     }
 
     private fun showThemePicker() {
@@ -998,7 +1076,7 @@ class MainActivity : AppCompatActivity() {
 
         // 标题
         root.addView(label("小地图风格", 22f, TEXT, bold = true))
-        root.addView(label("四种独立风格。下图为示意，原版保留高德默认颜色和标注；圆屏需更新配套固件。", 12f, SUB).apply {
+        root.addView(label("12 种风格。前 4 种有实拍预览，其余为配色示意；切换后手机会按对应风格重新抓图，圆屏需 v7.12.11 或更新固件。", 12f, SUB).apply {
             setPadding(0, dp(4), 0, dp(12))
         })
         // 卡片网格（两列）

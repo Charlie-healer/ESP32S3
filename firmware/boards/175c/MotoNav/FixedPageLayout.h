@@ -11,6 +11,8 @@ inline Target move(int page, int detail, bool horizontal, int sign) {
     if (page == 2 && sign < 0) return {0, 0, true};
     if (page == 0) return sign < 0 ? Target{1, 0, true} : Target{2, 0, true};
     if (page == 1 && detail == 0 && sign > 0) return {0, 0, true};
+    if (page == 1 && detail == 0 && sign < 0) return {3, 0, true};   // compass, right of weather
+    if (page == 3 && sign > 0) return {1, 0, true};
     return none;
   }
   if (page != 1) return none;

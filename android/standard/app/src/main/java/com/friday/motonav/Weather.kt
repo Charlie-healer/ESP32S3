@@ -311,6 +311,7 @@ object Weather {
                     img(slot, image)
                 }
                 BleLink.send("#WX,${data.aqi},${data.warningCount},${data.warningLevel},${data.rainBars.size},${data.warningTitle.hashCode() and 0x7fffffff}" + data.rainBars.joinToString("") { ",$it" })
+                BleLink.send("#RAIN,${data.rainMin}")
             }
             BleLink.send(m)
         } catch (e: Throwable) {

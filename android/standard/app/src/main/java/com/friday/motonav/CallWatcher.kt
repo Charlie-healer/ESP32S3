@@ -145,6 +145,10 @@ object CallWatcher {
                 "0" -> RadarFeeder.setActive(false)
                 "R" -> p.getOrNull(3)?.toIntOrNull()?.let { RadarFeeder.setRange(it) }
             }
+            "C" -> when (p.getOrNull(2)) {                           // round-screen compass page
+                "1" -> ctx?.let { CompassFeeder.start(it) }
+                "0" -> CompassFeeder.stop()
+            }
         }
     }
 

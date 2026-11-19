@@ -128,13 +128,18 @@ class AmapNotifyListener : NotificationListenerService() {
     companion object {
         @Volatile var instance: AmapNotifyListener? = null
     }
+    private var replayingActive = false
 
     override fun onListenerConnected() {
         instance = this
         MusicBridge.init(this)
         MusicBridge.refresh(true)
         AmapProbe.add("系统", "nl", "通知读取已连接")
+        // Replay existing notifications only into the AMap probe; do not forward
+        // the phone's notification history to the watch as if it just arrived.
+        replayingActive = true
         try { activeNotifications?.forEach { onNotificationPosted(it) } } catch (_: Exception) {}
+        replayingActive = false
     }
 
     override fun onDestroy() {
@@ -143,6 +148,7 @@ class AmapNotifyListener : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        if (!replayingActive) NotificationForwarder.forward(this, sbn)
         if (sbn == null || !sbn.packageName.startsWith("com.autonavi")) return
         val n = sbn.notification ?: return
         val sb = StringBuilder()

@@ -449,6 +449,16 @@ object MapFeeder {
     // ================= 位置 =================
 
     private var lastBearing: Float? = null       // v4.3 最后一次正常行驶时的朝向
+    private var lastFixLat = Double.NaN
+    private var lastFixLng = Double.NaN
+
+    /** Course from the previous fix, NaN when the two points are too close. */
+    private fun courseBetween(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Float {
+        if (!lat1.isFinite() || !lng1.isFinite()) return Float.NaN
+        val r = FloatArray(2)
+        android.location.Location.distanceBetween(lat1, lng1, lat2, lng2, r)
+        return if (r[0] >= 2.0f) r[1] else Float.NaN
+    }
 
     /** 每次定位调用（主线程）：lat/lng 为高德坐标，bearing 为朝向（度，正北 = 0，顺时针） */
     fun onLocation(lat: Double, lng: Double, bearing: Float, kmh: Int) {
@@ -463,8 +473,19 @@ object MapFeeder {
         }
         val x = f.x(lng); val y = f.y(lat)
         poseX = x; poseY = y; poseKmh = kmh; havePose = true
-        // v4.3 停车（车速很低）时 GPS 朝向会乱跳，圆屏地图跟着乱转：沿用最后一次正常行驶时的朝向
-        val hdg = if (kmh >= 4 || lastBearing == null) bearing.also { if (kmh >= 4) lastBearing = it } else lastBearing!!
+        // Prefer the course between two GPS fixes while moving. AMap 11.x's
+        // loc.bearing can follow the phone's physical orientation (flipping
+        // 180° when it is put in a pocket upside down), while the GPS track
+        // does not. Only fall back to loc.bearing when stopped/too close.
+        val course = courseBetween(lastFixLat, lastFixLng, lat, lng)
+        val validBearing = bearing.isFinite() && bearing >= 0f && !(bearing == 0f && kmh >= 4)
+        val hdg = when {
+            kmh >= 4 && course.isFinite() -> course.also { lastBearing = it }
+            validBearing && lastBearing == null -> bearing
+            lastBearing != null -> lastBearing!!
+            else -> if (bearing.isFinite() && bearing >= 0f) bearing else 0f
+        }
+        lastFixLat = lat; lastFixLng = lng
         BleLink.send("#p,${f.id},${(x * 10).roundToInt()},${(y * 10).roundToInt()},${hdg.roundToInt()},$kmh")
         if (ghostCoords != null && ghostBytes == null) encodeGhost()     // v4.5 有坐标系了，原路线可以发了
         if (!enabled) return

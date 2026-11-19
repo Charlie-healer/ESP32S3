@@ -20,6 +20,10 @@ int destStarY = 408;              // 408 = rider home, 316 = full standby
 void drawWaiting(int st);
 void drawWaitingRider(int st);
 void drawCompassPage();            // defined in PageNavigation.h
+void drawNotifyList();             // defined in NotifyCenter.h
+void drawNotifyBanner();
+void drawNotifyBell();
+void drawBikePage();               // defined in BikePage.h
 extern bool settingsOpen;
 extern bool leanOpen;
 void drawDestStar();
@@ -136,12 +140,12 @@ int page = 0;                               // 0 = 导航 / 首页，1 = 天气�
 int wxDetail = 0;                           // 天气列：0 = 天气，1 = 上方降雨，2 = 下方预警
 unsigned long pageAt = 0;
 
-// 页面顺序对应滑动位置：音乐在左，主页居中，天气在右；导航主页不显示。
+// 页面顺序对应滑动位置：音乐、主页、天气、指南针、通知、BIKE；导航主页不显示。
 void drawPageDots() {
   if (page == 0 && inNav) return;
-  const int pageOrder[] = {2, 0, 1, 3};
-  for (int i = 0; i < 4; i++) {
-    aaDisc(CX + (i * 2 - 3) * 8, 444, 4, page == pageOrder[i] ? C_WHITE : 0x4208);
+  const int pageOrder[] = {2, 0, 1, 3, 4, 5};
+  for (int i = 0; i < 6; i++) {
+    aaDisc(CX + (i * 2 - 5) * 7, 444, 4, page == pageOrder[i] ? C_WHITE : 0x4208);
   }
   if (page == 1) for (int i = 0; i < 3; i++) {
     aaDisc(438, CX + (i - 1) * 18, 3,
@@ -209,7 +213,10 @@ void drawWaiting(int st) {
   if (screenDark) return;
   if (companionOpen) { companionRedraw(); return; }
   if (page == 3) { drawCompassPage(); return; }
+  if (page == 4) { drawNotifyList(); return; }
+  if (page == 5) { drawBikePage(); return; }
   settingsLoad();
   if (homeStyle == HOME_FULL) drawWaitingFull(st);
   else drawWaitingRider(st);
+  if (page == 0) { drawNotifyBell(); drawNotifyBanner(); }
 }

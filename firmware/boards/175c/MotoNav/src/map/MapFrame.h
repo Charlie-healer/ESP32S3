@@ -1,7 +1,6 @@
 #pragma once
 // 地图帧组合及帧率统计。由 MotoNav.ino 按依赖顺序包含，仅编译一次。
 // v5.8 分步计时（微秒累计，每 2 秒发一次）
-#include "../nav/HeadingFusion.h"
 #define PROF_N 11
 uint32_t profAcc[PROF_N];
 uint32_t profT = 0;
@@ -11,20 +10,14 @@ void drawMapFrame() {
   unsigned long t = millis();
   lastMapDraw = t;
   frameIsMap = true;
-  // QMI8658 yaw fusion: the phone course anchors the heading, the gyro fills
-  // the gap between fixes so a bend rotates at the rate it is actually ridden.
-  headingFusionPoll((uint32_t)t);
-  static int headingAnchorFrame = -1;
-  if (posFrame != headingAnchorFrame && posAt != 0 && (t - posAt) < 2500) {
-    headingAnchorFrame = posFrame;
-    headingFusion.anchor((float)posHdg, posKmh / 3.6f, true, (uint32_t)t);
-  }
-  // 位置：按车速和转弯速度往前推算（v6.7 沿弧线，再加一点提前量），让画面连续移动、少“慢半拍”
+  // Restore the original 175 map heading: use the phone #p course directly
+  // (with predictPose's short-term turn prediction). The HeadingFusion port
+  // is intentionally not used here; its gyro integration/sign could rotate
+  // the map/route away from the phone's navigation arrow.
   float cx, cy, hPred;
   predictPose(t, leadMs / 1000.0f, cx, cy, hPred);
   float targetHdg = hPred;
-  if (headingFusion.fresh((uint32_t)t) && posAt != 0 && (t - posAt) < 2500)
-    targetHdg = headingFusion.heading();
+  if (mapRotManual) targetHdg = mapRotNormalize(mapRotHeading);
   viewTargetHdg = targetHdg;
   if (corrAt) {                                         // v2.6 平滑修正
     float f = fmaxf(0, 1 - (t - corrAt) / 400.0f);
@@ -158,6 +151,16 @@ void drawMapFrame() {
     char zb[16];
     snprintf(zb, sizeof(zb), "ZOOM %.1fX", userMapScale);
     printCentered(zb, CX, 58, 1, mapZoomActive ? C_GREEN : C_GREY);
+  }
+  if (mapGestureActive) {
+    char rb[32];
+    snprintf(rb, sizeof(rb), "ZOOM %.1fX  ROT %d", userMapScale, (int)lroundf(mapRotHeading));
+    printCentered(rb, CX, 72, 1, C_ORANGE);
+  }
+  if (mapRotManual) {
+    gfx->fillRoundRect(CX + 54, 400, 116, 28, 14, 0x1082);
+    gfx->drawRoundRect(CX + 54, 400, 116, 28, 14, 0x4208);
+    printCentered("AUTO", CX + 112, 407, 2, C_WHITE);
   }
   profMark(10);
   // v2.9 小地图里不画顶部的蓝牙小圆点（会和 N 标记重叠；能收到地图就说明连着）

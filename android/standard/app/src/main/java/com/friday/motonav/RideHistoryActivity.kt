@@ -37,12 +37,20 @@ class RideHistoryActivity : AppCompatActivity() {
     private lateinit var status: TextView
     private val handler = Handler(Looper.getMainLooper())
     private var exportId: String? = null
+    private var exportFitId: String? = null
     private var generation = 0
     private val exportFile = registerForActivityResult(ActivityResultContracts.CreateDocument("application/gpx+xml")) { uri ->
         val id = exportId; exportId=null
         if (uri != null && id != null) {
             toast("正在导出 GPX…")
             RideRecorder.export(id,uri) { error -> if (!isDestroyed) toast(if (error==null) "GPX 已导出" else "导出失败：$error") }
+        }
+    }
+    private val exportFitFile = registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        val id = exportFitId; exportFitId=null
+        if (uri != null && id != null) {
+            toast("正在导出 FIT…")
+            RideRecorder.exportFit(id,uri) { error -> if (!isDestroyed) toast(if (error==null) "FIT 已导出" else "导出失败：$error") }
         }
     }
     private val refresh = object : Runnable {
@@ -69,6 +77,26 @@ class RideHistoryActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, value -> RideRecorder.setEnabled(value); status.text=RideRecorder.status() }
         }
         content.addView(toggle)
+        val obd = SwitchCompat(this).apply {
+            text="OBD 车辆数据（蓝牙 ELM327）"; setTextColor(this@RideHistoryActivity.text); textSize=16f
+            isChecked=ObdBle.isEnabled(this@RideHistoryActivity)
+            setOnCheckedChangeListener { _, value -> ObdBle.setEnabled(this@RideHistoryActivity, value) }
+        }
+        content.addView(obd)
+        val tpms = SwitchCompat(this).apply {
+            text="TPMS 胎压（BLE 传感器）"; setTextColor(this@RideHistoryActivity.text); textSize=16f
+            isChecked=TpmsBle.isEnabled(this@RideHistoryActivity)
+            setOnCheckedChangeListener { _, value -> TpmsBle.setEnabled(this@RideHistoryActivity, value) }
+        }
+        content.addView(tpms)
+        val notify = SwitchCompat(this).apply {
+            text="转发手机通知到圆屏"; setTextColor(this@RideHistoryActivity.text); textSize=16f
+            isChecked=getSharedPreferences("motonav", Context.MODE_PRIVATE).getBoolean("notify_show", true)
+            setOnCheckedChangeListener { _, value ->
+                getSharedPreferences("motonav", Context.MODE_PRIVATE).edit().putBoolean("notify_show", value).apply()
+            }
+        }
+        content.addView(notify)
         status=label(RideRecorder.status(),13f,accent); content.addView(status)
         content.addView(label("轨迹保存在本机，不主动上传。模拟导航不记录。卸载会清除记录，重要轨迹请导出 GPX 保存。",13f,sub))
         content.addView(button("刷新记录") { load() })
@@ -108,6 +136,11 @@ class RideHistoryActivity : AppCompatActivity() {
         box.addView(TextView(this).apply { this.text="轨迹示意（无底图）\n粉色为轨迹，绿色为起点，橙色为终点。定位中断处不连线。"; textSize=12f; setPadding(0,dp(8),0,dp(8)) })
         val preview=RidePreview(this)
         box.addView(preview,LinearLayout.LayoutParams(-1,dp(260)))
+        box.addView(button("导出 FIT（Garmin/码表）") {
+            exportFitId=s.id
+            val date=SimpleDateFormat("yyyyMMdd-HHmmss",Locale.US).format(Date(s.start))
+            exportFitFile.launch("MotoNav-$date.fit")
+        })
         val dialog=AlertDialog.Builder(this).setTitle(s.title).setView(box)
             .setPositiveButton("导出 GPX") { _,_ ->
                 exportId=s.id

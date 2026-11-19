@@ -18,6 +18,6 @@ Android Studio 请打开 **`android/standard`**，Gradle JVM 选择 JDK 17 或�
 
 ## 适配固件与检查
 
-高德 SDK 为 `11.3.100`，构建使用 `useLegacyPackaging=false`，已按 Android 16KB page-size 对齐。当前 1.75 通用固件为 `7.12.10-pages.4`，两种安卓版本共用。时间同步在蓝牙认证后发送，后续每分钟校准，不启动额外导航引擎。
+高德 SDK 为 `11.2.100_3dmap11.2.100_loc11.2.100_sea9.8.1`，构建使用 `useLegacyPackaging=false`；native 库已按 Android 16 KB page-size 对齐，且实机验证 `TextureMapView` 取图正常。`11.3.100` 虽然也对齐，但取图路径回归会让圆屏停在 `CRUISE`，不要改回去（见 `doc/04` §19）。构建后可用 `python3 scripts/check-16kb-align.py <apk>` 检查 native 对齐。当前 1.75 通用固件为 `7.12.10-pages.4`，两种安卓版本共用。时间同步在蓝牙认证后发送，后续每分钟校准，不启动额外导航引擎。
 
 JDK 17 配置好后执行 `tests/run.ps1`；本轮公开源码已独立构建并校验签名，未把这次新签名构建覆盖到维护者手机。此前稳定版实测与限制仍按相应历史更新说明理解。

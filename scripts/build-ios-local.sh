@@ -17,11 +17,11 @@ swiftc -O ios/MotoNav/MapGeo.swift ios/MotoNav/RasterProcessing.swift ios/MotoNa
 "$taskOutput/styles-test"
 xcodebuild -workspace ios/MotoNav.xcworkspace -scheme MotoNav -destination 'generic/platform=iOS' -configuration Release -derivedDataPath "$taskOutput/Derived" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM= build | tee "$taskOutput/build-ios.log"
 taskApp="$taskOutput/Derived/Build/Products/Release-iphoneos/MotoNav.app"
-test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$taskApp/Info.plist")" = '0.15.1'
+test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$taskApp/Info.plist")" = '0.16.0'
 test -f "$taskApp/PlugIns/MotoNavShare.appex/MotoNavShare"
 taskStage="$(mktemp -d "$taskOutput/stage.XXXXXX")"
 mkdir -p "$taskStage/Payload"
 ditto "$taskApp" "$taskStage/Payload/MotoNav.app"
-(cd "$taskStage" && zip -qry "$taskOutput/MotoNav-0.15.1-unsigned.ipa" Payload)
-(cd "$taskOutput" && shasum -a 256 MotoNav-0.15.1-unsigned.ipa > SHA256SUMS.txt)
-echo "已生成：$taskOutput/MotoNav-0.15.1-unsigned.ipa（仍需用户签名安装）"
+(cd "$taskStage" && zip -qry "$taskOutput/MotoNav-0.16.0-unsigned.ipa" Payload)
+(cd "$taskOutput" && shasum -a 256 MotoNav-0.16.0-unsigned.ipa > SHA256SUMS.txt)
+echo "已生成：$taskOutput/MotoNav-0.16.0-unsigned.ipa（仍需用户签名安装）"

@@ -10,6 +10,7 @@
 #define AXP2101_INTSTS2 0x49
 
 static bool pwrKeyReady = false;
+void wakeFromAod();   // defined in Aod.h
 
 // Shared by the normal loop tail and the screen-dark fast path.
 void idlePowerCheck() {
@@ -33,6 +34,7 @@ void idlePowerCheck() {
 void pwrKeyBusLocked(bool dark) {
   if (flushDone) xSemaphoreTake(flushDone, portMAX_DELAY);
   if (dark) {
+    screenAod = false;
     panel->setBrightness(0);
     panel->displayOff();
     touchPower(false);                  // CST9217 deep sleep behind a dark panel
@@ -40,6 +42,7 @@ void pwrKeyBusLocked(bool dark) {
     Serial.println("PWR screen off");
   } else {
     cpuBoost();
+    screenAod = false;
     panel->displayOn();
     panel->setBrightness(screenBright);
     touchPower(true);                   // reset + re-init before any touch is read
@@ -80,7 +83,9 @@ void pwrKeyPoll() {
   Wire.write(AXP2101_INTSTS2);
   Wire.write((uint8_t)0xFF);             // write 1 to clear
   Wire.endTransmission();
-  if (screenDark) {
+  if (screenAod) {
+    wakeFromAod();
+  } else if (screenDark) {
     pwrKeyBusLocked(false);
   } else {
     if (sliding) dragAbort();

@@ -667,6 +667,12 @@ object BleLink {
         pump()
     }
 
+    /** 一次性事件，但用唯一 key，避免多条通知在控制队列里互相覆盖。 */
+    fun sendEventKey(key: String, msg: String) {
+        synchronized(lock) { enqueue(key, msg.toByteArray(Charsets.UTF_8)) }
+        pump()
+    }
+
     /** 发送一张文字图片；w = 0 表示清空这一栏 */
     fun clearWeather() {
         synchronized(lock) {

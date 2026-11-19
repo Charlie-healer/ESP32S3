@@ -1,5 +1,8 @@
 #pragma once
 #include "../../MusicCover.h"
+extern bool notifyDirty;
+void drawNotifyList();
+void drawBikePage();
 // 音乐页面、手势换页和数据中断提示。由 MotoNav.ino 按依赖顺序包含，仅编译一次。
 // ---- v5.5 跟手换页 ----
 // 触摸坐标和画面方向相反时改成 1（拖动时画面往手指反方向走就是反了）
@@ -254,10 +257,22 @@ static inline uint16_t dim565(uint16_t c, uint32_t k) {   // k: 0~32，32 = 原�
 void drawCompassPage() {
   onWaitScreen = false;
   frameIsMap = false;
+  // Ask the phone for a lightweight compass feed while this page is visible;
+  // repeat every 5 s so a reconnect (or a missed event) still starts it.
+  if (bleConnected && bleAuthed) {
+    static uint32_t compassAskAt = 0;
+    if (millis() - compassAskAt >= 5000) {
+      compassAskAt = millis();
+      pendingEvt = "T,C,1";
+    }
+  }
   gfx->fillScreen(C_BLACK);
   printCentered("COMPASS", CX, 24, 3, C_WHITE);
-  const bool have = posAt != 0 && (millis() - posAt < 5000);
-  const int hdg = have ? (((int)lroundf(posHdg) % 360) + 360) % 360 : 0;
+  const bool haveCompass = cmpHdg >= 0 && (millis() - cmpAt < 5000);
+  const bool havePos = posAt != 0 && (millis() - posAt < 5000);
+  const bool have = haveCompass || havePos;
+  const int hdg = haveCompass ? cmpHdg : (havePos ? (((int)lroundf(posHdg) % 360) + 360) % 360 : 0);
+  const float spd = haveCompass ? cmpKmh : posKmh;
   const int cy = 253;
   gfx->drawCircle(CX, cy, 180, 0x4208);
   gfx->drawCircle(CX, cy, 178, 0x2945);
@@ -290,11 +305,11 @@ void drawCompassPage() {
     snprintf(buf, sizeof(buf), "%03d", hdg);
     printCentered(buf, CX, 196, 4, C_WHITE);
     printCentered(CARD[((hdg + 22) / 45) & 7], CX, 234, 2, C_CYAN);
-    snprintf(buf, sizeof(buf), "%d KM/H", (int)lroundf(posKmh));
+    snprintf(buf, sizeof(buf), "%d KM/H", (int)lroundf(spd));
     printCentered(buf, CX, 268, 2, C_GREY);
   } else {
     printCentered("NO HEADING", CX, cy - 10, 3, C_GREY);
-    printCentered("START NAV OR CRUISE", CX, cy + 24, 1, 0x6B4D);
+    printCentered("WAITING FOR PHONE COMPASS", CX, cy + 24, 1, 0x6B4D);
   }
   drawPageDots();
   needFlush = true;
@@ -309,6 +324,8 @@ void renderPage(int p, int detail) {
   if (p == 2) drawMusic();
   else if (p == 1) { wxDetail = detail; drawWeather(); }
   else if (p == 3) drawCompassPage();
+  else if (p == 4) drawNotifyList();
+  else if (p == 5) drawBikePage();
   else if (inNav) drawNavFrame();
   else drawWaiting(bleConnected ? WAIT_READY : WAIT_NOLINK);
   page = keep; wxDetail = keepDetail; sliding = ks;
@@ -423,6 +440,11 @@ void slideCommit() {
     if (!wxHave || millis() - wxAt > 15UL * 60 * 1000) { pendingEvt = "T,W"; wxAskAt = millis(); }
   } else if (page == 3) {
     onWaitScreen = false;
+  } else if (page == 4) {
+    onWaitScreen = false;
+    notifyDirty = true;
+  } else if (page == 5) {
+    onWaitScreen = false;
   } else {
     if (inNav) navDirty = true;
     else { riderPrevF = -1; riderPrevZ = -2; catForce = true; }
@@ -436,6 +458,8 @@ void slideCancel() {
   if (page == 2) musicDirty = true;
   else if (page == 1) wxDirty = false;
   else if (page == 3) onWaitScreen = false;
+  else if (page == 4) { onWaitScreen = false; notifyDirty = true; }
+  else if (page == 5) { onWaitScreen = false; }
   else if (inNav) navDirty = true;
   else { onWaitScreen = true; catForce = true; }
   needFlush = true;

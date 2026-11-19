@@ -115,6 +115,24 @@ int speedKmh = -1;            // 车速，-1 表示还没有
 int camLimit = 0, camDist = 0;
 bool hasCam = false;          // 前方是否有测速
 int laneN = 0;                // 车道数，0 表示不显示
+
+// Phone/Nav extras (Android/iOS companion -> #PB/#RAIN/#FUEL/#BUMP/#RIDE).
+int phonePct = -1;            // phone battery %, -1 unknown
+bool phoneChg = false;        // phone charging
+int rainMin = -1;             // minutes until rain on route, -1 unknown
+int fuelNextM = -1;           // metres to next fuel station, -1 unknown
+int bumpM = -1;               // metres to next speed breaker, -1 unknown
+bool rideSummaryOpen = false;
+uint32_t rideSummaryAt = 0;
+float rideKm = 0, rideAvg = 0, rideMax = 0;
+int rideMin = 0;
+float rideLeanL = 0, rideLeanR = 0, rideMaxG = 0;
+
+// OBD/TPMS page (phone relay: #OBD and #TP).
+int obdRpm = -1, obdSpeed = -1, obdCoolant = -99, obdGear = -1, obdLoad = -1;
+float obdVolt = -1, obdFuelLph = -1;
+int tpFrontKpa = -1, tpRearKpa = -1, tpFrontC = -99, tpRearC = -99;
+uint32_t obdAt = 0, tpAt = 0;
 // v3.1 小地图底部的行程信息（"#e,剩余米,到达时间HHMM,红绿灯数"）和前方红绿灯（"#g,距离"）
 bool tripOn = false;
 bool cruiseOn = false;        // v4.8 巡航模式（没有目的地，只显示地图、车速、电子眼、安全提示）

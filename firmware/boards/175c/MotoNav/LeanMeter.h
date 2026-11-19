@@ -5,6 +5,7 @@
 
 #include <sensor/imu/qmi8658/SensorQMI8658.hpp>
 #include "FullStandbyUi.h"
+#include "src/power/WristWake.h"
 
 SensorQMI8658 imu;
 
@@ -63,6 +64,12 @@ void leanRead() {
   float ay = accel.mps2.y / 9.80665f;
   float az = accel.mps2.z / 9.80665f;
   gyroX = gyro.dps.x; gyroY = gyro.dps.y; gyroZ = gyro.dps.z;
+  // Screen frame for wrist raise/lower: x right, y toward 12 o'clock, z out.
+  // settingsAutoRotTick() already uses (-ax) as screen-up on this panel.
+  wristFeed(ay, -ax, az, millis(), !screenDark);
+  // While the panel is off/AOD only wrist detection needs the IMU; do not let
+  // carrying the device inflate the Lean page's MAX L/R/G.
+  if (screenDark) return;
   // 1.75C panel axes: sensor Y is horizontal (left/right), sensor X is
   // vertical (fore/aft). Rotate that pair into the canvas frame by the same
   // screen angle the display is flushed with, so Lean/G stay correct at

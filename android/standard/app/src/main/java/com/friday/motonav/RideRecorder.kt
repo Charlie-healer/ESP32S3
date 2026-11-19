@@ -171,6 +171,22 @@ object RideRecorder {
         }
         main.post { callback(r.exceptionOrNull()?.message) }
     }
+    /** Export the same accepted points as a minimal FIT activity file. */
+    fun exportFit(id: String, uri: Uri, callback: (String?) -> Unit) = worker.execute {
+        val r = runCatching {
+            writer?.flush()
+            val pts = ArrayList<RidePoint>()
+            pointsFile(id).forEachLine(Charsets.UTF_8) { line ->
+                runCatching { point(JSONObject(line)) }.getOrNull()?.let { pts.add(it) }
+            }
+            check(pts.isNotEmpty()) { "没有可导出的轨迹点" }
+            val bytes = FitEncoder.encode(pts)
+            val output = context.contentResolver.openOutputStream(uri) ?: error("无法写入所选文件")
+            output.use { it.write(bytes) }
+        }
+        main.post { callback(r.exceptionOrNull()?.message) }
+    }
+
     private fun point(o: JSONObject): RidePoint {
         val p = RidePoint(o.getDouble("lat"),o.getDouble("lng"),o.getLong("time"),o.optBoolean("segment"))
         require(RideTrackMath.valid(p.lat,p.lng) && p.time>0)

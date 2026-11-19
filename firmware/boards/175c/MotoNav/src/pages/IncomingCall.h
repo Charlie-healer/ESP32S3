@@ -5,6 +5,16 @@
 // 文字图片，图片栏 2）和号码；接听或挂断后回到原来的画面（地图 / 大箭头 / 首页）
 #include "../../src/power/ScreenState.h"
 
+void wakeFromAod();     // defined in Aod.h
+void aodResetIdle();    // defined in Aod.h
+bool notifyTap(int x, int y);
+bool notifyBellHit(int x, int y);
+bool rideSummaryTap(int x, int y);
+extern bool notifyDirty;
+extern bool notifyBanner;
+extern bool rideSummaryOpen;
+void drawNotifyList();
+
 bool callOn = false;
 String callNum = "";
 unsigned long callAt = 0, callSeenAt = 0;
@@ -88,6 +98,10 @@ static void touchPointToCanvas(int &x, int &y) {
 }
 
 void touchPoll() {
+  if (screenAod) {
+    if (touchIrq) { touchIrq = false; wakeFromAod(); }
+    return;
+  }
   if (screenDark) return;
   if (toyIsOpen()) { toyTouchPoll(); return; }
   if (companionOpen) { companionTouchPoll(); return; }
@@ -108,9 +122,15 @@ void touchPoll() {
   if (n > 0) {
     if (!touchDown) {
       touchDown = true;
+      aodResetIdle();
       touchHoldAt = now;
       touchX0 = touchX1 = x[0]; touchY0 = touchY1 = y[0];
       pendingEvt = "T,P," + String(x[0]) + "," + String(y[0]);
+      if (rideSummaryOpen) touchEat = true;
+      if (notifyBanner && y[0] < 114) {
+        notifyBanner = false; page = 4; onWaitScreen = false; notifyDirty = true;
+        drawNotifyList(); touchEat = true;
+      }
       if (destSheetOpen) destSwipeTouch = true;
       // Map double-tap-and-drag zoom: second press within 750 ms enters zoom
       // mode; the drag distance then changes userMapScale.
@@ -139,6 +159,34 @@ void touchPoll() {
     }
     touchX1 = x[0]; touchY1 = y[0];
     touchLastSeen = now;
+    // Single-finger long-press map gesture: hold still 450 ms, then drag
+    // vertically to zoom and horizontally to rotate. No second finger needed.
+    if (page == 0 && (inNav || cruiseOn || mapModeActive()) &&
+        !callOn && !pairOn && !fxOn && !mapZoomActive) {
+      const bool still = abs(x[0] - touchX0) <= 14 && abs(y[0] - touchY0) <= 14;
+      if (!mapGestureActive && still && now - touchHoldAt >= 450) {
+        mapGestureActive = true;
+        mapGestureStartScale = userMapScale;
+        mapGestureStartHdg = mapRotManual ? mapRotHeading : viewHdg;
+        mapGestureHintUntil = now + 2500;
+        touchEat = true;
+        dragAbort();
+      }
+      if (mapGestureActive) {
+        float vx = x[0] - touchX0, vy = y[0] - touchY0;
+        touchVectorToCanvas(vx, vy);
+        userMapScale = constrain(mapGestureStartScale - vy / 120.0f, 0.30f, 3.00f);
+        // A vertical-only drag is zoom only and keeps heading-up. A horizontal
+        // component switches to manual bearing; AUTO restores heading-up.
+        if (fabsf(vx) > 8.0f) {
+          if (!mapRotManual) { mapRotManual = true; mapGestureStartHdg = viewHdg; }
+          mapRotHeading = mapRotNormalize(mapGestureStartHdg + vx * 0.45f);
+        }
+        mapGestureHintUntil = now + 2500;
+        navDirty = true;
+        touchEat = true;
+      }
+    }
     if (mapZoomActive) {
       touchEat = true;
       float vx = touchX1 - mapZoomStartX;
@@ -148,7 +196,7 @@ void touchPoll() {
       mapZoomHintUntil = now + 2000;
       navDirty = true;
     }
-    if (callOn || pairOn || touchEat || fxOn || mapZoomActive) dragAbort();
+    if (callOn || pairOn || touchEat || fxOn || mapZoomActive || mapGestureActive) dragAbort();
     else if (page == 0 && (inNav || cruiseOn || mapModeActive()) &&
              lastMapTapAt && (unsigned long)(now - lastMapTapAt) <= 750) {
       // First tap is inside the double-tap window; do not start a page swipe.
@@ -159,6 +207,19 @@ void touchPoll() {
     touchDown = false;
     const unsigned long pressDuration = now - touchHoldAt;
     touchHoldAt = 0;
+    if (rideSummaryOpen) {
+      rideSummaryTap(touchX0, touchY0);
+      touchEat = false;
+      return;
+    }
+    if (mapGestureActive) {
+      mapGestureActive = false;
+      mapZoomSaveAt = now + 800;
+      mapGestureHintUntil = now + 1500;
+      navDirty = true;
+      touchEat = false;
+      return;
+    }
     if (mapZoomActive) {
       mapZoomActive = false;
       touchEat = true;
@@ -200,10 +261,17 @@ void touchPoll() {
         musicTap(touchX0, touchY0);
       }
       if (page == 1 && abs(touchX1 - touchX0) < 36 && abs(touchY1 - touchY0) < 36) weatherTap();
+      if (page == 4 && abs(touchX1 - touchX0) < 36 && abs(touchY1 - touchY0) < 36) {
+        int tx = touchX0, ty = touchY0;
+        touchPointToCanvas(tx, ty);
+        notifyTap(tx, ty);
+      }
       if (page == 0 && abs(touchX1 - touchX0) < 36 && abs(touchY1 - touchY0) < 36) {
         int tx = touchX0, ty = touchY0;
         touchPointToCanvas(tx, ty);
-        if (leanOpen) leanTap(tx, ty);
+        if (mapAutoButtonHit(tx, ty)) { mapRotManual = false; mapGestureHintUntil = now + 1200; navDirty = true; }
+        else if (notifyBellHit(tx, ty)) { page = 4; onWaitScreen = false; notifyBanner = false; notifyDirty = true; drawNotifyList(); }
+        else if (leanOpen) leanTap(tx, ty);
         else if (!settingsTap(tx, ty)) {
           if (toyButtonHit(tx, ty)) toyEnter();
           else if (!leanTap(tx, ty)) destTap(tx, ty);

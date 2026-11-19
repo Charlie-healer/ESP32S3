@@ -154,6 +154,11 @@ bool mapOn = true;
 int posFrame = -1;
 float posX = 0, posY = 0, posHdg = 0, posKmh = 0;
 unsigned long posAt = 0;
+// Standalone compass feed (phone heading/speed while page 3 is open). Kept
+// separate from pos* so a stopped bike does not disturb map prediction.
+int cmpHdg = -1;
+float cmpKmh = 0;
+unsigned long cmpAt = 0;
 float viewHdg = 0, viewScale = 0.7f;
 float corrX = 0, corrY = 0;          // v2.6 位置偏差（米），逐渐减小到 0
 unsigned long corrAt = 0;

@@ -13,6 +13,10 @@ inline Target move(int page, int detail, bool horizontal, int sign) {
     if (page == 1 && detail == 0 && sign > 0) return {0, 0, true};
     if (page == 1 && detail == 0 && sign < 0) return {3, 0, true};   // compass, right of weather
     if (page == 3 && sign > 0) return {1, 0, true};
+    if (page == 3 && sign < 0) return {4, 0, true};                  // notifications, right of compass
+    if (page == 4 && sign > 0) return {3, 0, true};
+    if (page == 4 && sign < 0) return {5, 0, true};                  // bike/OBD, right of notifications
+    if (page == 5 && sign > 0) return {4, 0, true};
     return none;
   }
   if (page != 1) return none;

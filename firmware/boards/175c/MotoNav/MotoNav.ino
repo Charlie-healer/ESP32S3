@@ -27,6 +27,9 @@
 #include "src/map/MapZoom.h"
 #include "src/map/MapState.h"
 #include "src/pages/HomePage.h"
+#include "src/pages/NotifyCenter.h"
+#include "src/pages/PhoneStatus.h"
+#include "src/pages/BikePage.h"
 #include "src/pages/PairingPage.h"
 #include "src/pages/ArrivalAnimation.h"
 #include "src/pages/IncomingCall.h"
@@ -202,6 +205,7 @@ void setup() {
 #include "src/power/CpuGovern.h"
 #include "src/power/Shutdown.h"
 #include "src/power/PwrKeyScreen.h"
+#include "src/power/Aod.h"
 #include "src/graphics/JunctionOverlay.h"
 
 // 主循环：接收消息、处理输入、调度页面、绘图和推屏。
@@ -272,6 +276,11 @@ void loop() {
     handleMessage(local.data, local.len);
   }
 
+  static int compassPrevPage = -1;
+  if (page != compassPrevPage) {
+    if (compassPrevPage == 3 && page != 3) pendingEvt = "T,C,0";
+    compassPrevPage = page;
+  }
   updateStats();
   if (pendingStat.length()) { pendingStat2 = pendingStat; pendingStat = ""; }
   sendPendingAck();                                    // v2.0 地图收齐的确认 / v2.2 帧率
@@ -292,11 +301,19 @@ void loop() {
   if (mapNow != wasMap) { wasMap = mapNow; navDirty = true; }   // 进出地图模式时整帧重画
   if (mapNow) navDirty = true;
 
+  leanRead();                                          // QMI8658: lean/G + wrist raise/lower
+  aodTick();                                           // wrist wake, auto-AOD, 1 Hz clock
   touchPoll();                                         // v5.2 按住接听 / v5.3 滑动换页
   batPoll();                                           // v6.8 电量
   pwrKeyPoll();                                        // PWR 短按：熄屏/亮屏
   cpuGovern();                                         // 熄屏/等待页 80MHz，活动回 240MHz
   settingsAutoRotTick();                               // ROTATE GRAV: settings sheet follows gravity
+  if (screenAod) {                                     // fake AOD: panel on, CPU low, 1 Hz
+    if (needFlush && !sliding) { flushSync(); needFlush = false; }
+    idlePowerCheck();
+    delay(20);
+    return;
+  }
   if (screenDark) {                                    // 熄屏期间只维持 BLE/接收/关机计时
     idlePowerCheck();
     delay(10);
@@ -377,6 +394,13 @@ void loop() {
       drawCompassPage();
     }
   }
+  if (page == 5 && !fxOn && !callOn && !pairOn && !pairReq && !sliding) {
+    static unsigned long bikeAt = 0;
+    if (millis() - bikeAt >= 250) {
+      bikeAt = millis();
+      drawBikePage();
+    }
+  }
 
   // 5. 导航中长时间收不到任何消息 → 数据中断提示
   if (inNav && conn && !fxOn && !callOn && !pairOn && page == 0 && !sliding && !staleShown && millis() - lastRxMs > STALE_MS) {
@@ -394,6 +418,8 @@ void loop() {
   static uint32_t lightDrawAt=0;
   animateCat();
   drawHomeClock();
+  notifyTick();                                       // banner on home, list on page 4
+  phoneStatusTick();                                  // phone battery/rain/fuel/bump + ride summary
   if(showLight) {
     if(!lightShown || needFlush || lightNow-lightDrawAt>=200) {
       drawTrafficLightLab(lightNow);lightDrawAt=lightNow;

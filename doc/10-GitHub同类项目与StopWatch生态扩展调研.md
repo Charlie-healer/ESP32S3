@@ -20,7 +20,7 @@
 | 5 | 矢量地图窗口 | `Pan-wh__esp32-car-dashboard` 的 `mw/mr/mb/mp/me`、`bikepod` 的 `MAPBEGIN/MAP/...` | 比手机截屏省带宽、可平滑旋转，是地图管线的下一代方案 |
 | 6 | AOD / 表盘 + 烧屏防护 | `muki01` 的 `aod.cpp`、`Pan-wh` 的 `photo_rt.cpp`、`wararyoLauncher` | 466×466 AMOLED 适合做常显；现在 RIDER/VICE 还不是真正的 AOD |
 | 7 | 骑行摘要/日志 | `OBD2` 的 `ride_summary.c`、`bikepod` 的 `ARRIVED`、`MotoNav-CYD` | 手机已有 `RideRecorder`，圆屏只缺到达后的摘要页 |
-| 8 | UI 毛玻璃/AA 矢量 | `Gyro-Seek__MotoNav_Watchcopy` 的 `UiModern.h` | 只改待机/设置/音乐页，不动地图，观感提升明显 |
+| 8 | UI 毛玻璃/AA 矢量的剩余页面 | `Gyro-Seek__MotoNav_Watchcopy` 的 `UiModern.h`；当前 `FullStandbyUi.h` 已有同一套实现 | VICE/Lean/Settings 已用，RIDER/音乐页还没统一；不动地图 |
 
 不建议现在做的：
 
@@ -268,14 +268,16 @@ MotoNav / MotoNav in:name / org:waveshareteam AMOLED / org:m5stack stopwatch
 已有：
 
 - 导航：地图/路线/转向环/车道/车速/限速/电子眼/行程进度/到达动画；
-- 待机：RIDER / VICE 双主页、目的地抽屉、RTC 离线时钟；
-- 音乐：封面、滑动切歌、双击点赞、进度、循环、音量、AMS/HID、歌词；
+- 待机：RIDER / VICE 双主页、目的地抽屉、RTC 离线时钟、毛玻璃/AA 矢量（VICE/Lean/Settings 已用 `FullStandbyUi.h`）；
+- 页面：音乐 / 首页 / 天气 / 指南针 4 页；
+- 音乐：封面、滑动切歌、双击点赞、进度、循环、音量、AMS/HID、歌词、极简模式；
 - 天气：和风天气、详情、预警；
 - 来电：整屏来电、触摸接听；
-- 传感：QMI8658 倾角/G、航向融合；
+- 传感：QMI8658 倾角/G、航向融合、GRAV 重力旋转；
+- 交互：地图双击拖动缩放（`MapZoom.h`）；
 - 电源：PWR 熄屏、AXP2101 电源轨/充电、CST9217 深睡、80/240 MHz；
-- 玩具：Bricks / Pinball / Marble / Pop / 水波纹 / ADS-B 雷达；
-- 伴侣：AvatarEngine（震动改声音）；
+- 玩具：Bricks / Pinball / Marble / Pop / 水波纹 / ADS-B 雷达 / REC 录音回放 / PET 宠物；
+- 伴侣：AvatarEngine + KK 程序化表情（震动改声音）；
 - 手机：Android 8.3.26（标准/读秒）、iOS 0.15.1；Android 已有 `RideRecorder` 骑行轨迹。
 
 明确没有：
@@ -283,12 +285,12 @@ MotoNav / MotoNav in:name / org:waveshareteam AMOLED / org:m5stack stopwatch
 - 通用通知中心（只有来电；`AmapNotifyListener` 只处理高德通知）；
 - 抬腕/落腕唤醒（只有 PWR）；
 - OBD-II / TPMS / 车辆遥测；
-- 矢量地图窗口（当前是手机截屏栅格 `TYPE_RASTER=3`）；
+- 手机端矢量道路窗口的持续下发：固件已有 `VectorMapReceiver.h`/`parseMap` 的矢量底图解析，但当前主用截屏栅格（`TYPE_RASTER=3`）；
 - 真正的 AOD/表盘（RIDER/VICE 是待机页，不是 1 Hz 常显）；
 - 闹钟/计时器/秒表；
 - 步数/睡眠；
 - OTA/网页刷机（USB 烧录）；
-- 语音助手/语音笔记（ES7210 双麦未使用）；
+- 语音助手/唤醒词（ES7210 已用于 REC 录音/回放，但语音助手、VAD、唤醒词未做）；
 - App 启动器/动态 App；
 - 多固件共存。
 
@@ -305,15 +307,15 @@ MotoNav / MotoNav in:name / org:waveshareteam AMOLED / org:m5stack stopwatch
 | 通用通知中心 | 只有来电 | `muki01` 通知存储；`AmoledOS` ANCS；`bikepod` ANCS/AMS | BLE + 手机 | M | **P0** |
 | 手机侧扩展数据 | 天气/限速/电子眼 | `bikepod` 的 `PHONEBAT/RAIN/FUELNEXT/BUMP` | 手机 | S | **P0** |
 | 骑行摘要 | 手机有轨迹；圆屏只有到达 | `OBD2` `ride_summary.c`；`bikepod` `ARRIVED`；`MotoNav-CYD` | 手机数据 | S/M | **P0** |
-| UI 毛玻璃/AA 矢量 | 点阵/普通矢量 | `Gyro` `UiModern.h` | 466×466 | S/M | **P0** |
+| UI 毛玻璃/AA 矢量 | VICE/Lean/Settings 已用；RIDER/音乐页未统一 | `Gyro` `UiModern.h`；当前 `FullStandbyUi.h` | 466×466 | S | **P0** |
 | OBD-II 车辆遥测 | 无 | `OBD2`、`Blueline`、`OBD-HUB-WATCH` | 1.75C 需手机转发/双角色 | L | P1 |
 | TPMS 胎压 | 无 | `OBD2` `tpms_*`；`go-marker`；`Blueline` | 外置 BLE 传感器 | M/L | P1 |
-| 矢量地图窗口 | 截屏栅格 | `Pan-wh` `mw/mr/mb/mp/me`；`bikepod` `MAPBEGIN/MAP` | 手机 + 设备光栅化 | L/XL | P1 |
+| 矢量地图窗口 | 固件有 `parseMap`/`VectorMapReceiver`，手机主用截屏栅格 | `Pan-wh` `mw/mr/mb/mp/me`；`bikepod` `MAPBEGIN/MAP` | 手机 + 设备光栅化 | L/XL | P1 |
 | AOD/表盘 | RIDER/VICE 待机页 | `muki01` `aod.cpp`；`Pan-wh` `photo_rt.cpp`；`wararyoLauncher` | AMOLED 适合 | M | P1 |
 | 闹钟/计时/秒表 | 无 | `muki01` alarms/timer/stopwatch；`soRound` | RTC/内部 RTC | M | P1 |
 | OTA/网页刷机 | USB 烧录 | `soRound` 双 OTA + 回滚；`Pip` Web Serial；`muki01` 浏览器 OTA | 32 MB Flash | L | P1 |
 | 步数/睡眠 | 无 | `muki01` `step_counter.h`/`sleep_tracker.cpp`；`soRound` | QMI8658 | M | P2 |
-| 语音助手/语音笔记 | ES7210 未用 | `brookesia` AI Chatbot；`StarScope` 语音；`knoedel` 语音笔记 | 双麦 + ES8311 | XL | P2 |
+| 语音助手/唤醒词 | 录音/回放已有；助手未做 | `brookesia` AI Chatbot；`StarScope` 语音；`knoedel` 语音笔记 | 双麦 + ES8311 | XL | P2 |
 | App 启动器/多应用 | 页面式 | `brookesia`、`soRound`、`AmoledOS` | 无 SD，但有 Flash | XL | P2 |
 | 动态 App | 无 | `AmoledOS` `.so`/Lua | 无 SD | XL | P2 |
 | 游戏扩展 | 4 + 水波纹 + 雷达 | `brookesia` 2048/Flappy/Snake；`soRound` 迷宫/流体；`Pip` 6 款 | 触摸/IMU | S/M | P2 |
@@ -346,8 +348,8 @@ MotoNav / MotoNav in:name / org:waveshareteam AMOLED / org:m5stack stopwatch
    - Android 的 `RideRecorder` 已有距离/最高速/轨迹，补均速和倾角/G 即可；iOS 0.16 的 `RideBridge`/`GRecorder` 可直接参考。
    - 设备端暂不写日志，避免 16 MB 分区和 LittleFS 的新风险。
 
-4. **UI 毛玻璃/AA 矢量**
-   - 从 `Gyro` 的 `UiModern.h` 取 `drawTranslucentRoundRect()`、`drawTranslucentCircle()` 和 AA 字模，只用在待机页、设置页、音乐页。
+4. **UI 毛玻璃/AA 矢量统一**
+   - `FullStandbyUi.h` 已经有 `drawTranslucentRoundRect()`、`drawTranslucentCircle()` 和 AA 字模，VICE/Lean/Settings 在用；剩余工作是把 RIDER 主页和音乐页也切到同一套，不是从零移植。
    - 地图页保持现有 fast flush，避免半透明逐像素混合拖慢帧率。
 
 验收：抬腕 10 次亮 10 次、放下 5 次灭 5 次；通知/手机数据不影响导航帧率；摘要页不阻塞到达动画。
@@ -395,7 +397,7 @@ MotoNav / MotoNav in:name / org:waveshareteam AMOLED / org:m5stack stopwatch
 ### 批次 D（P2，长期）
 
 - 步数/睡眠：`muki01` 算法可直接用；对骑行设备是“ off-bike 增值”，不是核心。
-- 语音：先做“语音笔记/语音命令”（ES7210 + ES8311），再做云端 AI；Brookesia 的 OpenAI WebRTC 和 StarScope 的语音讲解是两条不同路线。
+- 语音：在现有 REC 录音/回放基础上加语音命令/VAD/唤醒词，再做云端 AI；Brookesia 的 OpenAI WebRTC 和 StarScope 的语音讲解是两条不同路线。
 - App 启动器/动态 App：Brookesia/soRound/AmoledOS 都证明可行，但会重写现有页面模型；除非决定把 MotoNav 变成“骑行 OS”，否则不做。
 - 游戏/星空/多固件：有余力再做；游戏可先加 2048/Flappy/Snake，星空用 M5StarScope 的星表 + QMI8658。
 
@@ -450,7 +452,7 @@ MotoNav / MotoNav in:name / org:waveshareteam AMOLED / org:m5stack stopwatch
 
 - **1.75C 无 SD、无马达、无双实体键**：任何依赖这些的功能都要做触摸/声音/Flash 替代。
 - **32 MB Flash 只用 16 MB**：OTA/日志/多固件前先改分区；不要直接套用 1.85B/StopWatch 的分区表。
-- **ES7210 双麦未初始化**：语音功能需要新增驱动、I2S 配置和可能的录音分区；`05_Spec_Analyzer` 是起点。
+- **ES7210 已用于录音**：`Recorder.h`/`MicI2S.cpp` 已经工作（2 MB PSRAM、约 4.3 分钟）；语音助手还需要 VAD/唤醒词/云端和更长的音频缓冲，`05_Spec_Analyzer` 是频谱参考。
 - **BLE 双角色**：手机外设 + ELM327 主机同时跑，NimBLE 可以但当前 `BLEDevice` 封装未必支持；优先手机转发。
 - **AMOLED 烧屏**：AOD/照片表盘必须做亮度封顶、像素偏移、自动息屏；不要长时间纯白高亮。
 - **light sleep**：`doc/09` 已分析 PSRAM/BLE/USB 风险；没有实测前不要替换现有熄屏 80 MHz 方案。
@@ -462,7 +464,7 @@ MotoNav / MotoNav in:name / org:waveshareteam AMOLED / org:m5stack stopwatch
 
 如果只做一件事：**抬腕/落腕唤醒 + AOD**。这是最低成本、最直接把 1.75C 从“导航屏”变成“手表”的改动。
 
-如果做一套：**批次 A（抬腕 + 手机数据 + 骑行摘要 + UI 毛玻璃）**，预计只增加几 KB 级 Flash 和少量 RAM，不动地图/电源主链路，风险最低。
+如果做一套：**批次 A（抬腕 + 手机数据 + 骑行摘要 + UI 统一）**，预计只增加几 KB 级 Flash 和少量 RAM，不动地图/电源主链路，风险最低。
 
 如果要一个差异化卖点：**OBD-II + TPMS（手机转发）**。这是摩托车用户愿意为之买单的功能，也比“再加一个游戏”更有价值。
 

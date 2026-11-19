@@ -2,8 +2,8 @@
 // Full-screen on-device settings page for the 1.75C.
 //
 // Layout follows the StopWatch branch's 4-card settings page (brightness /
-// map style / rotation / auto sleep), with three bottom pills for the options
-// this port already had (home skin / companion / sound) and a back pill.
+// map style / rotation / auto sleep), with five bottom pills (home skin /
+// companion / sound / music layout / AOD) and a back pill.
 // The background follows the map theme selected on the phone (12 styles).
 // ROTATION has a fifth GRAV state: a rotation-calibration view with crosshairs
 // that follows the QMI8658 until the user taps to lock.
@@ -15,6 +15,8 @@ extern String pendingEvt;
 extern int soundVolume;
 extern bool musicDirty;
 void audioSetVolume(int volume);
+void wakeFromAod();
+void aodResetIdle();
 
 bool settingsOpen = false;
 uint8_t brightPct = 50;
@@ -47,6 +49,7 @@ void settingsLoad() {
   sleepMin = pr.getInt("sleep", 5);
   soundVolume = pr.getInt("sound", 80);
   musicMinimal = pr.getBool("mmin", false);
+  aodEnabled = pr.getBool("aod", true);
   pr.end();
   if (brightPct != 25 && brightPct != 50 && brightPct != 75 && brightPct != 100) brightPct = 50;
   if (sleepMin != 0 && sleepMin != 3 && sleepMin != 5 && sleepMin != 10) sleepMin = 5;
@@ -187,12 +190,12 @@ void drawSettingsSheet() {
     printCentered(cards[i].value, cx + cardW / 2, cy + 73, 2, C_WHITE);
   }
 
-  // Bottom pills: home skin / companion / sound.
-  const int pillW = 88, pillH = 32, pillY = 326;
-  const int pillX[4] = {42, 140, 238, 336};
-  const char *pillLabel[4] = {"HOME", "COMP", "SOUND", "MUSIC"};
-  String pillValue[4] = {homeStyleName(homeStyle), String(""), String(soundVolume) + "%", musicMinimal ? "MIN" : "RICH"};
-  for (int i = 0; i < 4; i++) {
+  // Bottom pills: home skin / companion / sound / music layout / AOD.
+  const int pillW = 80, pillH = 32, pillY = 326;
+  const int pillX[5] = {23, 113, 203, 293, 383};
+  const char *pillLabel[5] = {"HOME", "COMP", "SOUND", "MUSIC", "AOD"};
+  String pillValue[5] = {homeStyleName(homeStyle), String(""), String(soundVolume) + "%", musicMinimal ? "MIN" : "RICH", aodEnabled ? "ON" : "OFF"};
+  for (int i = 0; i < 5; i++) {
     gfx->fillRoundRect(pillX[i], pillY, pillW, pillH, 16, 0x1082);
     gfx->drawRoundRect(pillX[i], pillY, pillW, pillH, 16, 0x4208);
     printCentered(pillLabel[i], pillX[i] + pillW / 2, pillY + 4, 1, 0x8C71);
@@ -265,9 +268,9 @@ bool settingsTap(int x, int y) {
       return true;
     }
 
-    const int pillW = 88, pillH = 32, pillY = 326;
-    const int pillX[4] = {42, 140, 238, 336};
-    for (int i = 0; i < 4; i++) {
+    const int pillW = 80, pillH = 32, pillY = 326;
+    const int pillX[5] = {23, 113, 203, 293, 383};
+    for (int i = 0; i < 5; i++) {
       if (x >= pillX[i] && x <= pillX[i] + pillW && y >= pillY && y <= pillY + pillH) {
         if (i == 0) {
           homeStyle = (homeStyle == HOME_FULL) ? HOME_RIDER : HOME_FULL;
@@ -285,10 +288,16 @@ bool settingsTap(int x, int y) {
           audioSetVolume(soundVolume);
           Preferences pr; pr.begin("motonav", false); pr.putInt("sound", soundVolume); pr.end();
           drawSettingsSheet();
-        } else {
+        } else if (i == 3) {
           musicMinimal = !musicMinimal;
           Preferences pr; pr.begin("motonav", false); pr.putBool("mmin", musicMinimal); pr.end();
           musicDirty = true;
+          drawSettingsSheet();
+        } else {
+          aodEnabled = !aodEnabled;
+          Preferences pr; pr.begin("motonav", false); pr.putBool("aod", aodEnabled); pr.end();
+          if (!aodEnabled && screenAod) wakeFromAod();
+          aodResetIdle();
           drawSettingsSheet();
         }
         return true;

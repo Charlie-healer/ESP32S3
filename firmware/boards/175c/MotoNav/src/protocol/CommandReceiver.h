@@ -6,6 +6,7 @@ void resetNavState() {
   if (idlePowerOffNavigationActive(true, inNav, cruiseOn, navDir == "A"))
     idlePowerOffReset(&idlePowerOffTimer, millis());
   inNav = false;
+  mapRotManual = false; mapGestureActive = false;        // new route/connection: back to heading-up
   tripOn = false; lightDist = -1;                       // v3.1
   mapCamN = 0;                                          // v3.5
   ghostN = 0;                                           // v4.4
@@ -156,6 +157,17 @@ void handleText(const String &m) {
       laneN = n;
     }
     navDirty = true;
+    return;
+  }
+  if (m.startsWith("#C,")) {                             // compass while page 3 is open
+    int h = -1;
+    float k = 0;
+    if (sscanf(m.c_str() + 3, "%d,%f", &h, &k) >= 1) {
+      cmpHdg = ((h % 360) + 360) % 360;
+      cmpKmh = (k >= 0 && k < 400) ? k : 0;
+      cmpAt = millis();
+      if (page == 3) needFlush = true;
+    }
     return;
   }
   if (m.startsWith("#p,")) {                             // v2.0 位置
@@ -328,6 +340,64 @@ void handleText(const String &m) {
     }
     callOn = on;
     if (!on) navDirty = true;
+    return;
+  }
+  if (m.startsWith("#N|")) {                             // notification: #N|app|title|body
+    const int p1 = m.indexOf('|', 3);
+    const int p2 = p1 > 0 ? m.indexOf('|', p1 + 1) : -1;
+    String app = p1 > 3 ? m.substring(3, p1) : "";
+    String title = p1 > 0 ? (p2 > p1 ? m.substring(p1 + 1, p2) : m.substring(p1 + 1)) : m.substring(3);
+    String body = p2 > p1 ? m.substring(p2 + 1) : "";
+    notifyPush(app, title, body);
+    return;
+  }
+  if (m == "#NC") { notifyClear(); return; }
+  if (m.startsWith("#PB,")) {                            // phone battery: #PB,pct,charging
+    int pct = -1, chg = 0;
+    if (sscanf(m.c_str() + 4, "%d,%d", &pct, &chg) >= 1) {
+      phonePct = (pct >= 0 && pct <= 100) ? pct : -1;
+      phoneChg = chg != 0;
+      needFlush = true;
+    }
+    return;
+  }
+  if (m.startsWith("#RAIN,")) { rainMin = m.substring(6).toInt(); needFlush = true; return; }
+  if (m.startsWith("#FUEL,")) { fuelNextM = m.substring(6).toInt(); needFlush = true; return; }
+  if (m.startsWith("#BUMP,")) { bumpM = m.substring(6).toInt(); needFlush = true; return; }
+  if (m.startsWith("#RIDE|")) {                          // #RIDE|km|min|avg|max|leanL|leanR|maxG
+    float km = 0, avg = 0, max = 0, ll = 0, lr = 0, mg = 0;
+    int mins = 0;
+    if (sscanf(m.c_str() + 6, "%f|%d|%f|%f|%f|%f|%f", &km, &mins, &avg, &max, &ll, &lr, &mg) >= 6) {
+      rideKm = km; rideMin = mins; rideAvg = avg; rideMax = max;
+      rideLeanL = ll; rideLeanR = lr; rideMaxG = mg;
+      // The phone does not record lean/G; use the on-board QMI8658 maxima.
+      if (fabsf(rideLeanL) < 0.1f && fabsf(rideLeanR) < 0.1f) {
+        rideLeanL = fabsf(leanMaxL);
+        rideLeanR = leanMaxR;
+      }
+      if (rideMaxG < 0.01f) rideMaxG = leanMaxG;
+      rideSummaryOpen = true; rideSummaryAt = millis();
+      needFlush = true;
+      Serial.printf("RIDE summary %.2fkm %dmin avg=%.1f max=%.1f\n", rideKm, rideMin, rideAvg, rideMax);
+    }
+    return;
+  }
+  if (m.startsWith("#OBD|")) {                           // #OBD|rpm|kmh|coolant|volt|gear|load|fuelLph
+    int rpm = -1, kmh = -1, cool = -99, gear = -1, load = -1;
+    float volt = -1, fuel = -1;
+    if (sscanf(m.c_str() + 5, "%d|%d|%d|%f|%d|%d|%f", &rpm, &kmh, &cool, &volt, &gear, &load, &fuel) >= 5) {
+      obdRpm = rpm; obdSpeed = kmh; obdCoolant = cool; obdVolt = volt;
+      obdGear = gear; obdLoad = load; obdFuelLph = fuel; obdAt = millis();
+      needFlush = true;
+    }
+    return;
+  }
+  if (m.startsWith("#TP|")) {                            // #TP|frontKpa|rearKpa|frontC|rearC
+    int fk = -1, rk = -1, fc = -99, rc = -99;
+    if (sscanf(m.c_str() + 4, "%d|%d|%d|%d", &fk, &rk, &fc, &rc) >= 2) {
+      tpFrontKpa = fk; tpRearKpa = rk; tpFrontC = fc; tpRearC = rc; tpAt = millis();
+      needFlush = true;
+    }
     return;
   }
   if (m.startsWith("#y,")) {                             // v5.0 重新规划中

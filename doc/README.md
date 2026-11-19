@@ -17,6 +17,7 @@
 | [09-同板项目功能移植.md](09-同板项目功能移植.md) | 同板项目审计、QMI8658 航向融合、AXP2101 电源轨/充电修正、验证与未移植项 |
 | [10-GitHub同类项目与StopWatch生态扩展调研.md](10-GitHub同类项目与StopWatch生态扩展调研.md) | 2026-11-13 新增 16 个仓库：1.75C/1.8/1.85B/2.06/M5StopWatch 功能矩阵、移植优先级、代码索引与许可 |
 | [11-GitHub扩展调研-第二轮.md](11-GitHub扩展调研-第二轮.md) | 2026-11-14 新增 42 个仓库：1.75C 硬件/时序实测、TE/band pacing、AOD/抬腕、通知中心、FIT 断点续记、OBD、SDL2 模拟器、许可分层 |
+| [12-五项功能落地记录.md](12-五项功能落地记录.md) | 2026-11-15 抬腕/AOD、通知中心、手机数据/骑行摘要、OBD/TPMS/FIT、iOS 0.16 的实现、协议、构建结果和验证清单 |
 
 ## 当前版本
 
@@ -41,10 +42,11 @@
 - 待机主页支持两种皮肤：默认 RIDER（当前骑手主页），设置页 `HOME` 可切换到 VICE 完整待机页；两套共用抽屉、设置、倾角和 RTC/HomeClock。
 - 完整目的地抽屉/音乐手势/倾角仪表/伴侣模式已接入；伴侣震动改为 ES8311 声音，1.75C 无实体双键和马达。
 - PWR 短按熄屏/亮屏、熄屏/空闲待机 CPU 80MHz 动态调频已并入；CPU 80MHz 已实测，熄屏/亮屏路径已自检，PWR 实体短按待复测。
-- 仓库已扩展为完整源码形态：`firmware/`、`android/`、`ios/`、`docs/`、`licenses/`、`scripts/`；iOS 0.15.1 已并入，Bundle ID `com.friday.motonav`，未做 Xcode/真机验证。
+- 仓库已扩展为完整源码形态：`firmware/`、`android/`、`ios/`、`docs/`、`licenses/`、`scripts/`；iOS 0.16.0 已并入，Bundle ID `com.friday.motonav`，未做 Xcode/真机验证。
 - 同板项目移植（2026-11-12）：QMI8658 航向融合已并入地图帧，AXP2101 未用电源轨已关闭、充电终止/预充改为 25 mA、截止 3.0 V；CST9217 熄屏深睡 + RST 唤醒已实测；主页新增 TOY 按钮，含 Bricks/Pinball/Marble/Pop 四个游戏、Water 水波纹和 ADS-B 雷达（手机端取数、BLE bulk type 5 转发，圆屏不开 WiFi）。启动和 6 个玩具的自检日志已实机确认；Android debug APK 已编译通过，iOS 只改源码未编译。视觉效果、倾斜方向、雷达实飞和满充时间待上板/实车复测。详见 [09-同板项目功能移植.md](09-同板项目功能移植.md)。
 - GitHub 扩展调研（2026-11-13）：新增 16 个同类仓库到 `doc/github-refs`，覆盖 1.75C 同板（soRound OS、Brookesia、Pip）、1.8（muki01 完整手表 OS）、1.85B（摩托 OBD2）、1.75（Pan-wh 六表盘/BLE 导航）和 M5StopWatch 生态。已整理功能缺口矩阵与批次建议：P0 为抬腕唤醒、通知中心、手机扩展数据、骑行摘要、毛玻璃 UI；P1 为 OBD/TPMS、矢量地图窗口、AOD、闹钟、OTA。详见 [10-GitHub同类项目与StopWatch生态扩展调研.md](10-GitHub同类项目与StopWatch生态扩展调研.md)。
 - GitHub 扩展调研第二轮（2026-11-14）：新增 42 个仓库，`doc/github-refs` 共 84 个、约 5.2 GB。最大收获是 1.75C 同板实测知识库（TE 16.95 ms、CASET 偶对齐、QMI8658 FIFO 读法、32 MB GD25Q256E）、不依赖 LVGL 的 band pacing/dirty-rect、AOD+light sleep 完整配方、通知中心/ANCS 分层、FIT 编码器+15 s 断点续记、SDL2 共享 UI 模拟器。注意：`cnshaohua/MotoNav-1.75C` 经核对只有 README 改动；`CustomOS`、`cps3-dashboard` 等技术价值高但无许可证，只能参考。详见 [11-GitHub扩展调研-第二轮.md](11-GitHub扩展调研-第二轮.md)。
+- 五项功能落地（2026-11-15）：固件加入抬腕/落腕 + 假 AOD、通知中心（page 4）、手机电量/降雨/加油站/减速带叠加、骑行摘要、BIKE 页（page 5，OBD/TPMS）；Android 加入通知转发、手机电量、降雨、#RIDE、FIT 导出、ELM327 客户端、BLE TPMS 解码；iOS 整树更新到 0.16.0 并接回 RadarFeeder；指南针页改为手机 `#C` 航向/速度馈送（`T,C,1/0`）；地图修复 bearing=0 兜底并支持单指长按缩放/旋转 + `AUTO` 按钮。固件 `1,426,080 B / 109,708 B`、Android `assembleDebug` 通过；地图朝向已恢复原版 `hPred` 并烧录确认 `MotoNav ready`；GPS-course 版 APK 已于 2026-11-19 安装成功（无 DEBUGGABLE，无 16 KB 弹窗）。iOS 仅 Swift parse 通过，Xcode 构建未执行。详见 [12-五项功能落地记录.md](12-五项功能落地记录.md)。
 
 ## 重要提醒
 

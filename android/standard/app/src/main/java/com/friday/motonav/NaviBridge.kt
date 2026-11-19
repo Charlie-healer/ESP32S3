@@ -128,6 +128,7 @@ object NaviBridge {
     private var camMinDist = Int.MAX_VALUE
     private var myLat = Double.NaN
     private var myLng = Double.NaN
+    private var lastBearingLogAt = 0L
     private var newLaneApi = false
     private var lastLaneMsg = ""
     private var lastRoadText = ""
@@ -472,7 +473,15 @@ object NaviBridge {
                     BleLink.sendEvent("#O${tripMeters.roundToInt()}/$min/$tripMaxKmh")
                 }
             } else arrivalSession.cancel(epoch)
+            val ride = RideRecorder.live
             RideRecorder.stop()
+            if (arrived && ride != null) {
+                val km = ride.meters / 1000.0
+                val minutes = ((ride.end - ride.start).coerceAtLeast(0L) / 60000L).toInt().coerceAtLeast(1)
+                val avg = if (minutes > 0) km / (minutes / 60.0) else 0.0
+                BleLink.sendEventKey("RIDE${SystemClock.elapsedRealtime()}",
+                    String.format(java.util.Locale.US, "#RIDE|%.2f|%d|%.1f|%.1f|0|0|0", km, minutes, avg, ride.maxKmh))
+            }
             ShareGuide.stop()
             active = false
             handler.removeCallbacks(tick)
@@ -618,10 +627,25 @@ object NaviBridge {
             if (cruising) cruiseIdle.onFix(receivedAt, fixStamp, idleSpeed, idleLat, idleLng, idleAccuracy)
             RideRecorder.onFix(idleLat,idleLng,fixStamp,receivedWall,idleAccuracy,idleSpeed)
             if (c != null) {
+                val prevLat = myLat; val prevLng = myLng
                 myLat = c.latitude; myLng = c.longitude
                 if (active) addTrip(c.latitude, c.longitude, kmh)                 // v7.9
                 ShareGuide.onLocation(c.latitude, c.longitude)                    // v4.5
-                MapFeeder.onLocation(c.latitude, c.longitude, loc.bearing, kmh)   // v2.0 小地图
+                // AMap 11.x sometimes reports bearing=0 while moving. Fall back
+                // to the course between the previous and current fix so the
+                // round map keeps rotating heading-up.
+                var bearing = loc.bearing
+                if (!bearing.isFinite() || bearing < 0f || (bearing == 0f && kmh >= 4)) {
+                    val fallback = courseBetween(prevLat, prevLng, c.latitude, c.longitude)
+                    if (fallback.isFinite()) bearing = fallback
+                }
+                val logAt = SystemClock.elapsedRealtime()
+                if (kmh >= 4 && logAt - lastBearingLogAt >= 5000) {
+                    lastBearingLogAt = logAt
+                    android.util.Log.i("MotoNavBearing",
+                        "raw=${loc.bearing} use=$bearing kmh=$kmh prev=${prevLat.isFinite()}")
+                }
+                MapFeeder.onLocation(c.latitude, c.longitude, bearing, kmh)       // v2.0 小地图
             }
             val m = "#v,$kmh"
             if (m != lastSpeedMsg) {
@@ -715,6 +739,14 @@ object NaviBridge {
         val x = (lng2 - lng1) * k * Math.cos((lat1 + lat2) / 2 * k)
         val y = (lat2 - lat1) * k
         return Math.sqrt(x * x + y * y) * 6_371_000.0
+    }
+
+    /** Course from the previous fix, or NaN when the two fixes are too close. */
+    private fun courseBetween(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Float {
+        if (!lat1.isFinite() || !lng1.isFinite()) return Float.NaN
+        val r = FloatArray(2)
+        android.location.Location.distanceBetween(lat1, lng1, lat2, lng2, r)
+        return if (r[0] >= 2.0f) r[1] else Float.NaN
     }
 
     // ================= v1.7：车道 =================

@@ -99,6 +99,9 @@ class NavService : Service() {
         MapFeeder.load(this)              // v2.0 读取小地图开关
         AmapCaptureHost.serviceStarted(this)
         CallWatcher.start(this)           // v5.0 来电显示
+        PhoneStatusSender.start(this)     // #PB phone battery
+        if (ObdBle.isEnabled(this)) ObdBle.start(this)
+        if (TpmsBle.isEnabled(this)) TpmsBle.start(this)
         Weather.init(this)                // 圆屏天气页
         AmapProbe.ensureReceiver(this)    // v3.5 高德探测：接收车机版广播
         NaviVoice.load(this)              // v3.8 导航语音
@@ -112,6 +115,10 @@ class NavService : Service() {
         AmapCaptureHost.serviceStopped(this)
         running = false
         CallWatcher.stop()                // v5.0
+        PhoneStatusSender.stop()
+        ObdBle.stop()
+        TpmsBle.stop()
+        CompassFeeder.stop()
         Brightness.stop()
         BleLink.stopAuto()
         try {

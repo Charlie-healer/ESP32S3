@@ -16,7 +16,8 @@ object QWeatherClient {
         val wind: String, val humidity: String, val hours: List<Hour>,
         val rain: String, val rainBars: List<Int>, val air: String, val aqi: Int,
         val warningTitle: String, val warningBody: String, val warningAdvice: String,
-        val warningCount: Int, val warningLevel: Int, val notes: String, val attribution: String)
+        val warningCount: Int, val warningLevel: Int, val notes: String, val attribution: String,
+        val rainMin: Int = -1)
 
     fun normalizeHost(raw: String): String {
         val host = raw.trim().removePrefix("https://").trimEnd('/').lowercase(Locale.ROOT)
@@ -127,13 +128,14 @@ object QWeatherClient {
         fun level(a: JSONObject): Int = when(a.optString("severity")) { "extreme" -> 4; "severe" -> 3; "moderate" -> 2; else -> 1 }
         val top = alerts.maxByOrNull { level(it) }
         val noAlertConfirmed = alert != null && (alert.optJSONArray("alerts") != null || alert.optJSONObject("metadata")?.optBoolean("zeroResult") == true)
+        val rainMin = bars.indexOfFirst { it > 0 }.let { if (it >= 0) (it * 5).coerceAtMost(120) else -1 }
         return Result(text, temp.roundToInt(), iconOf(text, java.time.LocalTime.now().hour.let { it < 6 || it >= 19 }),
             windName + if(scale >= 0) " ${scale}级" else "", if(humidity.isFinite() && humidity in 0.0..1.0) "湿度 ${(humidity*100).roundToInt()}%" else "湿度未知", hours,
             rain?.optString("summary")?.takeIf { it.isNotBlank() } ?: "降水预报暂不可用", bars,
             airText, if(aqi.isFinite()) aqi.roundToInt() else -1,
             top?.optString("headline") ?: if(noAlertConfirmed) "当前位置暂无有效预警" else "预警信息暂不可用",
             top?.optString("description").orEmpty(), top?.optString("instruction").orEmpty(),
-            if(noAlertConfirmed) alerts.size else -1, top?.let { level(it) } ?: 0, notes, attribution)
+            if(noAlertConfirmed) alerts.size else -1, top?.let { level(it) } ?: 0, notes, attribution, rainMin)
     }
     fun iconOf(w: String, night: Boolean): Int = when {
         w.contains("雷") -> 5

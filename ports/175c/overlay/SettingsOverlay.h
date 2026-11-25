@@ -29,13 +29,24 @@ bool musicMinimal = false;
 float autoRotAngle = 0;
 uint32_t autoRotAt = 0;
 
+// On-device MAP STYLE cycle. Raw codes are translated by the phone app's
+// CallWatcher SET_THEME handler: 0 VICE -> app theme 1, 1 ORIG -> 0,
+// 2 BW -> 5, 3 RADAR -> 8, 5 GTA5 -> 2. DRAGON(11) stays phone-picker only,
+// and raw 4 remains reserved for it so older/newer sides stay compatible.
+static const int THEME_CYCLE[] = {0, 1, 5, 2, 3};
+static const char *THEME_CYCLE_NAME[] = {"VICE", "ORIG", "GTA5", "BW", "RADAR"};
+static const int THEME_CYCLE_N = (int)(sizeof(THEME_CYCLE) / sizeof(THEME_CYCLE[0]));
+
 static const char *themeName(int idx) {
-  switch (idx & 3) {
-    case 0: return "VICE";
-    case 1: return "ORIG";
-    case 2: return "BW";
-    default: return "RADAR";
-  }
+  for (int i = 0; i < THEME_CYCLE_N; i++)
+    if (THEME_CYCLE[i] == idx) return THEME_CYCLE_NAME[i];
+  return "VICE";
+}
+
+static inline int themeCycleNext(int idx) {
+  for (int i = 0; i < THEME_CYCLE_N; i++)
+    if (THEME_CYCLE[i] == idx) return THEME_CYCLE[(i + 1) % THEME_CYCLE_N];
+  return THEME_CYCLE[0];
 }
 
 void settingsLoad() {
@@ -44,7 +55,10 @@ void settingsLoad() {
   Preferences pr;
   pr.begin("motonav", true);
   brightPct = (uint8_t)pr.getInt("bright", 50);
-  settingsThemeIdx = pr.getInt("theme", 0) & 3;
+  int savedTheme = pr.getInt("theme", 0);
+  settingsThemeIdx = THEME_CYCLE[0];
+  for (int i = 0; i < THEME_CYCLE_N; i++)
+    if (THEME_CYCLE[i] == savedTheme) settingsThemeIdx = savedTheme;
   homeStyle = pr.getInt("home", 0) == 1 ? HOME_FULL : HOME_RIDER;
   sleepMin = pr.getInt("sleep", 5);
   soundVolume = pr.getInt("sound", 80);
@@ -241,7 +255,7 @@ bool settingsTap(int x, int y) {
       return true;
     }
     if (card == 1) {
-      settingsThemeIdx = (settingsThemeIdx + 1) & 3;
+      settingsThemeIdx = themeCycleNext(settingsThemeIdx);
       Preferences pr; pr.begin("motonav", false); pr.putInt("theme", settingsThemeIdx); pr.end();
       pendingEvt = String("T,SET_THEME,") + String(settingsThemeIdx);
       drawSettingsSheet();

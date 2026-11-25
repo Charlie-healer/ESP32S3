@@ -133,11 +133,12 @@ object CallWatcher {
                 main.post { navigateDestination(idx) }
             }
             "SET_THEME" -> {
-                // The standby THEME row sends 0..3 = VICE / ORIG / BW / RADAR.
-                // Translate to the app's theme ids: VICE 1, ORIG 0, BW 5, RADAR 8.
-                // Theme 11 (DRAGON) is route-only and stays phone-picker only.
+                // The standby THEME row cycles raw codes = VICE / ORIG / GTA5 / BW / RADAR.
+                // Translate to the app's theme ids: VICE 1, ORIG 0, GTA5 2, BW 5, RADAR 8.
+                // Raw 4 stays reserved for DRAGON 11 (route-only, phone-picker only).
+                // Unknown codes fall back to VICE so mixed firmware/app versions stay safe.
                 val raw = p.getOrNull(2)?.toIntOrNull() ?: 0
-                val t = when (raw) { 0 -> 1; 1 -> 0; 2 -> 5; 3 -> 8; 4 -> 11; else -> 1 }
+                val t = when (raw) { 0 -> 1; 1 -> 0; 2 -> 5; 3 -> 8; 4 -> 11; 5 -> 2; else -> 1 }
                 main.post { MapFeeder.setTheme(t) }
             }
             "AC" -> when (p.getOrNull(2)) {                          // round-screen ADS-B page
